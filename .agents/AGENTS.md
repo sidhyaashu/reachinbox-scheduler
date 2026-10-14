@@ -46,8 +46,8 @@
 | Phase | Description | Status | Verification & Notes |
 |---|---|---|---|
 | **Phase 0** | Requirements analysis, Figma check, Architecture proposal, ADRs | ✅ **Completed** | Clarifications, ADR-001, Task Plan approved |
-| **Phase 1** | Monorepo setup, TypeScript strict config, shared contracts, linting | 🔄 **In Progress** | Workspaces, strict tsconfig, Zod schemas, Vitest |
-| **Phase 2** | PostgreSQL schema, raw-SQL versioned migrations, repository layer | ⏳ Pending | Custom migration runner, connection pool, indices |
+| **Phase 1** | Monorepo setup, TypeScript strict config, shared contracts, linting | ✅ **Completed** | Workspaces, strict tsconfig, Zod schemas, 10 Vitest tests passing |
+| **Phase 2** | PostgreSQL schema, raw-SQL versioned migrations, repository layer | 🔄 **In Progress** | Custom migration runner, connection pool, indices |
 | **Phase 3** | Email API service, idempotency keys, transactional outbox pattern | ⏳ Pending | `POST /api/v1/emails/schedule`, Outbox events |
 | **Phase 4** | Redis/BullMQ setup, Scheduler dispatch, recovery & reconciliation | ⏳ Pending | Event dispatch, recovery loop, zero-cron |
 | **Phase 5** | Email Worker, Nodemailer (Ethereal), Redis token-bucket rate limiter | ⏳ Pending | Concurrency, 2s delay, hourly cap, deferred jobs |
