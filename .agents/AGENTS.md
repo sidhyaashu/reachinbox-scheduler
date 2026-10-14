@@ -47,8 +47,8 @@
 |---|---|---|---|
 | **Phase 0** | Requirements analysis, Figma check, Architecture proposal, ADRs | ✅ **Completed** | Clarifications, ADR-001, Task Plan approved |
 | **Phase 1** | Monorepo setup, TypeScript strict config, shared contracts, linting | ✅ **Completed** | Workspaces, strict tsconfig, Zod schemas, 10 Vitest tests passing |
-| **Phase 2** | PostgreSQL schema, raw-SQL versioned migrations, repository layer | 🔄 **In Progress** | Custom migration runner, connection pool, indices |
-| **Phase 3** | Email API service, idempotency keys, transactional outbox pattern | ⏳ Pending | `POST /api/v1/emails/schedule`, Outbox events |
+| **Phase 2** | PostgreSQL schema, raw-SQL versioned migrations, repository layer | ✅ **Completed** | Custom migration runner, connection pool, indices, repos tested |
+| **Phase 3** | Email API service, idempotency keys, transactional outbox pattern | 🔄 **In Progress** | `POST /api/v1/emails/schedule`, Outbox events, session auth |
 | **Phase 4** | Redis/BullMQ setup, Scheduler dispatch, recovery & reconciliation | ⏳ Pending | Event dispatch, recovery loop, zero-cron |
 | **Phase 5** | Email Worker, Nodemailer (Ethereal), Redis token-bucket rate limiter | ⏳ Pending | Concurrency, 2s delay, hourly cap, deferred jobs |
 | **Phase 6** | Google OAuth session auth & Slack OAuth rate-limit alert integration | ⏳ Pending | Real OAuth flows, secure cookie session |
