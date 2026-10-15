@@ -65,10 +65,17 @@ export function Sidebar() {
     <div className="flex flex-col justify-between h-full">
       {/* Top Section */}
       <div className="flex flex-col gap-6">
-        {/* Brand Logo "ONB" + close button on mobile */}
-        <div className="px-2 flex items-center justify-between">
-          <div className="font-black text-2xl tracking-tighter text-black select-none font-mono">
-            ONB
+        {/* Brand Logo "reachinbox" + close button on mobile */}
+        <div className="px-1 flex items-center justify-between">
+          <div className="flex items-center gap-2 select-none group cursor-pointer">
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-[#00a84e] to-[#22c55e] flex items-center justify-center text-white shadow-sm shadow-[#00a84e]/20 group-hover:scale-105 transition-transform duration-200">
+              <svg className="w-4 h-4 fill-none stroke-current stroke-2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+              </svg>
+            </div>
+            <span className="font-brand font-extrabold text-xl tracking-tight text-slate-900">
+              reach<span className="text-[#00a84e]">inbox</span>
+            </span>
           </div>
           {mobileSidebarOpen && (
             <button
