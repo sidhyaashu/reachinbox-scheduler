@@ -55,9 +55,9 @@
 | **Phase 7** | Search service with Elasticsearch, async indexing & reindexing | ✅ **Completed** | Tenant-isolated search, index mappings, 32 tests |
 | **Phase 8** | API Gateway, BFF aggregation layer, Nginx reverse proxy | ✅ **Completed** | Unified entry point, Bull-board, proxy routing, 34 tests |
 | **Phase 9** | Docker Compose orchestration, persistent volumes, healthchecks | ✅ **Completed** | Multi-stage Dockerfile, compose config validated |
-| **Phase 10** | Structured logging, OpenTelemetry / Application Insights, metrics | 🔄 **In Progress** | Correlation IDs, structured JSON logger |
-| **Phase 11** | Concurrency, restart persistence & 1,000-burst load testing | ⏳ Pending | Failure injection, restart test script |
-| **Phase 12** | Frontend implementation (Next.js / Tailwind / shadcn) per Figma | ⏳ Pending | Login, Compose modal/page, Scheduled/Sent tables |
+| **Phase 10** | Structured logging, OpenTelemetry / Application Insights, metrics | ✅ **Completed** | Correlation IDs, structured JSON logger, 36 tests |
+| **Phase 11** | Concurrency, restart persistence & 1,000-burst load testing | ✅ **Completed** | 1,000-burst deferral tests, restart recovery script, 38 tests |
+| **Phase 12** | Frontend implementation (Next.js / Tailwind / shadcn) per Figma | 🔄 **In Progress** | Login, Compose modal/page, Scheduled/Sent tables |
 | **Phase 13** | Documentation, README, demo script, submission review | ⏳ Pending | GitHub access to Mitrajit & Yadav036, Loom/Video |
 
 ---
