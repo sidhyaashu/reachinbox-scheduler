@@ -63,55 +63,48 @@ jobs:
           passphrase: ${{ secrets.VM_SSH_PASSPHRASE }}
           password: ${{ secrets.VM_PASSWORD }}
           port: 22
+          timeout: 60s
+          command_timeout: 15m
           script_stop: true
           script: |
             echo "🚀 Starting ReachInbox deployment on Azure VM..."
 
-            # Ensure Docker and Docker Compose plugin are available
-            if ! command -v docker &> /dev/null; then
-              echo "Installing Docker..."
-              curl -fsSL https://get.docker.com | sh
-              sudo usermod -aG docker $USER
-            fi
-
-            # Create destination directory
             APP_DIR="/opt/reachinbox"
-            sudo mkdir -p $APP_DIR
-            sudo chown -R $USER:$USER $APP_DIR
+            sudo mkdir -p "$APP_DIR"
+            sudo chown -R azureuser:azureuser "$APP_DIR"
+            cd "$APP_DIR"
 
-            # Initialize or update git repository safely
-            if [ ! -d "$APP_DIR/.git" ]; then
-              echo "Initializing git repository in $APP_DIR..."
-              git -C $APP_DIR init -b main
-              git -C $APP_DIR remote add origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git 2>/dev/null || git -C $APP_DIR remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+            # Authenticate git remote with current GitHub Action run token
+            if [ ! -d ".git" ]; then
+              git init -b main
+              git remote add origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
             else
-              git -C $APP_DIR remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+              git remote set-url origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
             fi
+
             echo "Fetching latest changes from origin main..."
-            git -C $APP_DIR fetch origin main
-            git -C $APP_DIR reset --hard origin/main
-            cd $APP_DIR
+            git fetch origin main
+            git reset --hard origin/main
 
             # Ensure production .env exists
-            if [ -f .env ]; then
-              echo "Preserving existing production .env on VM."
-            else
+            if [ ! -f .env ]; then
               echo "Creating initial .env from .env.example..."
               cp .env.example .env
+            else
+              echo "Preserving existing production .env."
             fi
 
             # Deploy containers with Docker Compose
-            echo "Building and starting Docker Compose services..."
+            echo "Building and updating Docker Compose services..."
             docker compose pull postgres redis elasticsearch caddy || true
             docker compose up -d --build --remove-orphans
 
-            # Wait for Gateway & services health check
+            # Health verification
             echo "Waiting for services to become healthy..."
             sleep 15
             docker compose ps
 
-            # Health verification
-            if curl -s -f http://localhost:4000/health/live > /dev/null; then
+            if curl -s -f http://localhost:4000/health/live > /dev/null 2>&1; then
               echo "✅ API Gateway Health Check: PASSED"
             else
               echo "⚠️ Warning: Gateway health check did not respond immediately, check docker logs."
