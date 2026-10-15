@@ -37,7 +37,20 @@ export class MailerService {
       return cachedEtherealTransporter;
     }
 
-    // Check environment variables first
+    // Check if custom / real SMTP credentials (e.g. Gmail App Password, SES, SendGrid) are provided in environment
+    if (process.env.SMTP_USER && process.env.SMTP_PASS) {
+      return nodemailer.createTransport({
+        host: process.env.SMTP_HOST || 'smtp.gmail.com',
+        port: parseInt(process.env.SMTP_PORT || '587', 10),
+        secure: process.env.SMTP_SECURE === 'true' || process.env.SMTP_PORT === '465',
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS,
+        },
+      });
+    }
+
+    // Check environment variables first for Ethereal
     if (process.env.ETHEREAL_USER && process.env.ETHEREAL_PASS) {
       cachedEtherealTransporter = nodemailer.createTransport({
         host: process.env.ETHEREAL_HOST || 'smtp.ethereal.email',
