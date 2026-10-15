@@ -27,6 +27,12 @@ export function createEmailRouter(controller: EmailController = new EmailControl
     controller.batchSchedule
   );
 
+  router.post(
+    '/batch',
+    validate({ body: BatchScheduleEmailSchema }),
+    controller.batchSchedule
+  );
+
   router.get(
     '/scheduled',
     validate({ query: EmailQuerySchema }),
@@ -41,6 +47,12 @@ export function createEmailRouter(controller: EmailController = new EmailControl
 
   router.post(
     '/:id/cancel',
+    validate({ params: CancelEmailParamSchema }),
+    controller.cancel
+  );
+
+  router.delete(
+    '/:id',
     validate({ params: CancelEmailParamSchema }),
     controller.cancel
   );

@@ -7,11 +7,26 @@ module.exports = {
     './src/app/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   theme: {
+    screens: {
+      '2xs': '360px',
+      'xs': '480px',
+      'sm': '640px',
+      'md': '768px',
+      'lg': '1024px',
+      'xl': '1280px',
+      '2xl': '1536px',
+    },
     container: {
       center: true,
-      padding: '2rem',
-      screens: {
-        '2xl': '1400px',
+      padding: {
+        DEFAULT: '1rem',
+        '2xs': '1rem',
+        xs: '1.25rem',
+        sm: '1.5rem',
+        md: '2rem',
+        lg: '2.5rem',
+        xl: '3rem',
+        '2xl': '4rem',
       },
     },
     extend: {

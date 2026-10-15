@@ -17,13 +17,22 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const deriveDisplayName = (emailStr: string): string => {
+    const prefix = emailStr.split('@')[0] || 'User';
+    return prefix
+      .split(/[._-]/)
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ');
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const loginEmail = email.trim() || 'oliver.brown@domain.io';
-      await apiClient.auth.loginDemo(loginEmail, 'Oliver Brown');
-      success('Welcome back', 'Logged in as Oliver Brown');
+      const loginEmail = email.trim() || 'demo@reachinbox.ai';
+      const dynamicName = deriveDisplayName(loginEmail);
+      await apiClient.auth.loginDemo(loginEmail, dynamicName);
+      success('Welcome back', `Signed in as ${dynamicName}`);
       router.push('/dashboard');
     } catch (err: any) {
       error('Login failed', err.message);
@@ -37,11 +46,11 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-[#fcfcfc] flex items-center justify-center p-4">
-      <Card className="w-full max-w-[380px] p-8 sm:p-10 rounded-2xl border border-slate-100/80 bg-white shadow-[0_4px_24px_rgba(0,0,0,0.03)]">
+    <div className="min-h-screen w-full bg-[#fcfcfc] flex items-center justify-center p-3 2xs:p-4 xs:p-6 sm:p-8">
+      <Card className="w-full max-w-[380px] p-6 2xs:p-8 sm:p-10 rounded-2xl border border-slate-100/80 bg-white shadow-[0_4px_24px_rgba(0,0,0,0.03)]">
         <CardContent className="p-0 flex flex-col items-center">
           {/* Title */}
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 mb-8">
+          <h1 className="text-xl 2xs:text-2xl font-bold tracking-tight text-slate-900 mb-6 2xs:mb-8 select-none">
             Login
           </h1>
 
@@ -49,7 +58,7 @@ export default function LoginPage() {
           <button
             type="button"
             onClick={handleGoogleLogin}
-            className="w-full flex items-center justify-center gap-3 py-2.5 px-4 rounded-xl bg-[#e8f5e9] hover:bg-[#dcf0dd] text-slate-800 text-sm font-medium transition-all"
+            className="w-full flex items-center justify-center gap-3 py-2.5 px-4 rounded-xl bg-[#e8f5e9] hover:bg-[#dcf0dd] text-slate-800 text-xs 2xs:text-sm font-medium transition-all cursor-pointer"
           >
             <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
               <path
@@ -73,23 +82,23 @@ export default function LoginPage() {
           </button>
 
           {/* Divider */}
-          <div className="w-full flex items-center my-6 gap-3">
+          <div className="w-full flex items-center my-5 2xs:my-6 gap-3">
             <Separator className="flex-1 bg-slate-100" />
-            <span className="text-xs text-slate-400 font-normal whitespace-nowrap">
-              or sign up through email
+            <span className="text-[11px] 2xs:text-xs text-slate-400 font-normal whitespace-nowrap select-none">
+              or sign in through email
             </span>
             <Separator className="flex-1 bg-slate-100" />
           </div>
 
           {/* Email / Password Form */}
-          <form onSubmit={handleLogin} className="w-full space-y-3.5">
+          <form onSubmit={handleLogin} className="w-full space-y-3 2xs:space-y-3.5">
             <div>
               <Input
                 type="email"
-                placeholder="Email ID"
+                placeholder="Email ID (e.g. alex@reachinbox.ai)"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="h-11 bg-[#f4f6f8] border-none text-sm text-slate-800 placeholder:text-slate-400 rounded-xl"
+                className="h-10 2xs:h-11 bg-[#f4f6f8] border-none text-xs 2xs:text-sm text-slate-800 placeholder:text-slate-400 rounded-xl cursor-text"
               />
             </div>
 
@@ -99,14 +108,14 @@ export default function LoginPage() {
                 placeholder="Password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="h-11 bg-[#f4f6f8] border-none text-sm text-slate-800 placeholder:text-slate-400 rounded-xl"
+                className="h-10 2xs:h-11 bg-[#f4f6f8] border-none text-xs 2xs:text-sm text-slate-800 placeholder:text-slate-400 rounded-xl cursor-text"
               />
             </div>
 
             <Button
               type="submit"
               disabled={loading}
-              className="w-full h-11 bg-[#00a84e] hover:bg-[#009444] text-white font-medium text-sm rounded-xl transition-all shadow-none mt-2"
+              className="w-full h-10 2xs:h-11 bg-[#00a84e] hover:bg-[#009444] text-white font-medium text-xs 2xs:text-sm rounded-xl transition-all shadow-none mt-2 cursor-pointer disabled:cursor-not-allowed"
             >
               {loading ? (
                 <Loader2 className="w-4 h-4 animate-spin" />

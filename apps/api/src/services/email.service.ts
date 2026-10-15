@@ -83,7 +83,7 @@ export class EmailService {
     input: BatchScheduleEmailOutput
   ): Promise<{ scheduledCount: number; emails: EmailRecord[] }> {
     let senderId = input.senderId;
-    const sender = await this.senderRepo.findById(senderId);
+    let sender = senderId ? await this.senderRepo.findById(senderId) : null;
     if (!sender) {
       const defaultSender = await this.senderRepo.findDefaultOrFirstByUserId(userId);
       if (defaultSender) {

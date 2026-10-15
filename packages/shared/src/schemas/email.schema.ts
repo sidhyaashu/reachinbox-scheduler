@@ -26,7 +26,7 @@ export const CsvLeadRowSchema = z.object({
 export type CsvLeadRow = z.infer<typeof CsvLeadRowSchema>;
 
 export const BatchScheduleEmailSchema = z.object({
-  senderId: z.string().uuid({ message: 'Valid senderId is required' }),
+  senderId: z.string().uuid({ message: 'Valid senderId is required' }).optional(),
   subject: z.string().min(1, { message: 'Subject is required' }).max(500),
   body: z.string().min(1, { message: 'Body is required' }),
   leads: z

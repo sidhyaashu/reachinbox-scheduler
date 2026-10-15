@@ -1,16 +1,19 @@
 import { create } from 'zustand';
-import { apiClient, UserProfile, EmailRecord, ScheduleBatchPayload } from './api-client';
+import { apiClient, UserProfile, EmailRecord, ScheduleBatchPayload, DashboardSummary } from './api-client';
 
 interface SchedulerState {
   // User & Profile
   user: UserProfile | null;
+  sender: DashboardSummary['sender'] | null;
   // Navigation & Active View
   activeTab: 'scheduled' | 'sent';
+  mobileSidebarOpen: boolean;
+  filterStatus: 'ALL' | 'SCHEDULED' | 'PROCESSING' | 'SENT' | 'FAILED';
   // Email Records
   scheduledEmails: EmailRecord[];
   sentEmails: EmailRecord[];
   counts: { scheduled: number; sent: number };
-  // Selected Email for Detail View (Image 6)
+  // Selected Email for Detail View
   selectedEmail: EmailRecord | null;
   detailOpen: boolean;
   // Compose Screen state
@@ -28,6 +31,8 @@ interface SchedulerState {
   // Actions
   loadDashboard: () => Promise<void>;
   setActiveTab: (tab: 'scheduled' | 'sent') => void;
+  setMobileSidebarOpen: (open: boolean) => void;
+  setFilterStatus: (status: 'ALL' | 'SCHEDULED' | 'PROCESSING' | 'SENT' | 'FAILED') => void;
   selectEmail: (email: EmailRecord) => void;
   closeDetail: () => void;
   openCompose: () => void;
@@ -41,16 +46,14 @@ interface SchedulerState {
 }
 
 export const useSchedulerStore = create<SchedulerState>((set, get) => ({
-  user: {
-    id: '00000000-0000-0000-0000-000000000001',
-    email: 'oliver.brown@domain.io',
-    name: 'Oliver Brown',
-    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-  },
+  user: null,
+  sender: null,
   activeTab: 'scheduled',
+  mobileSidebarOpen: false,
+  filterStatus: 'ALL',
   scheduledEmails: [],
   sentEmails: [],
-  counts: { scheduled: 12, sent: 785 },
+  counts: { scheduled: 0, sent: 0 },
   selectedEmail: null,
   detailOpen: false,
   composeOpen: false,
@@ -65,32 +68,50 @@ export const useSchedulerStore = create<SchedulerState>((set, get) => ({
   loadDashboard: async () => {
     set({ isLoading: true, errorMessage: null });
     try {
-      // 1. Load user, scheduled, and sent concurrently via centralized API client
+      // Load summary and email records in parallel
       const [summary, scheduledRes, sentRes] = await Promise.all([
         apiClient.dashboard.getSummary().catch(() => null),
         apiClient.emails.getScheduled(1, 100).catch(() => ({ items: [], total: 0 })),
         apiClient.emails.getSent(1, 100).catch(() => ({ items: [], total: 0 })),
       ]);
 
-      const user = summary?.user
-        ? {
-            id: summary.user.id,
-            email: summary.user.email || 'oliver.brown@domain.io',
-            name: summary.user.name || 'Oliver Brown',
-            avatarUrl: summary.user.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-          }
-        : get().user;
+      let user = summary?.user || null;
+      if (!user) {
+        const me = await apiClient.auth.getCurrentUser().catch(() => null);
+        if (me) {
+          user = {
+            id: me.id,
+            email: me.email,
+            name: me.name,
+            avatarUrl: null,
+          };
+        }
+      }
 
-      const scheduledItems = scheduledRes.items.length > 0 ? scheduledRes.items : [];
-      const sentItems = sentRes.items.length > 0 ? sentRes.items : [];
+      // If still unauthenticated, provide clean fallback profile
+      if (!user) {
+        user = {
+          id: '00000000-0000-0000-0000-000000000001',
+          email: 'demo@reachinbox.ai',
+          name: 'Demo User',
+          avatarUrl: null,
+        };
+      }
+
+      const scheduledItems = scheduledRes.items.length > 0 ? scheduledRes.items : (summary?.scheduledEmails || []);
+      const sentItems = sentRes.items.length > 0 ? sentRes.items : (summary?.sentEmails || []);
+
+      const scheduledCount = summary?.stats?.totalScheduled ?? Math.max(scheduledRes.total, scheduledItems.length);
+      const sentCount = summary?.stats?.totalSent ?? Math.max(sentRes.total, sentItems.length);
 
       set({
         user,
+        sender: summary?.sender || null,
         scheduledEmails: scheduledItems,
         sentEmails: sentItems,
         counts: {
-          scheduled: Math.max(scheduledRes.total, scheduledItems.length),
-          sent: Math.max(sentRes.total, sentItems.length),
+          scheduled: scheduledCount,
+          sent: sentCount,
         },
         isLoading: false,
         isRefreshing: false,
@@ -101,11 +122,19 @@ export const useSchedulerStore = create<SchedulerState>((set, get) => ({
   },
 
   setActiveTab: (tab: 'scheduled' | 'sent') => {
-    set({ activeTab: tab, selectedEmail: null, detailOpen: false });
+    set({ activeTab: tab, selectedEmail: null, detailOpen: false, mobileSidebarOpen: false });
+  },
+
+  setMobileSidebarOpen: (open: boolean) => {
+    set({ mobileSidebarOpen: open });
+  },
+
+  setFilterStatus: (status: 'ALL' | 'SCHEDULED' | 'PROCESSING' | 'SENT' | 'FAILED') => {
+    set({ filterStatus: status });
   },
 
   selectEmail: (email: EmailRecord) => {
-    set({ selectedEmail: email, detailOpen: true });
+    set({ selectedEmail: email, detailOpen: true, mobileSidebarOpen: false });
   },
 
   closeDetail: () => {
@@ -113,7 +142,7 @@ export const useSchedulerStore = create<SchedulerState>((set, get) => ({
   },
 
   openCompose: () => {
-    set({ composeOpen: true, detailOpen: false });
+    set({ composeOpen: true, detailOpen: false, mobileSidebarOpen: false });
   },
 
   closeCompose: () => {
@@ -160,6 +189,7 @@ export const useSchedulerStore = create<SchedulerState>((set, get) => ({
   scheduleCampaign: async (payload: ScheduleBatchPayload) => {
     const res = await apiClient.emails.scheduleBatch(payload);
     await get().loadDashboard();
+    set({ activeTab: 'scheduled', composeOpen: false });
     return res;
   },
 

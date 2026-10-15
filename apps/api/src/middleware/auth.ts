@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { Request, Response, NextFunction } from 'express';
 import { SessionRepository, UserRepository } from '@reachinbox/database';
 import { UnauthorizedError } from '@reachinbox/shared';
@@ -28,7 +29,10 @@ export async function authMiddleware(req: Request, _res: Response, next: NextFun
     // 1. Check session cookie
     const sessionToken = req.cookies?.reachinbox_session;
     if (sessionToken) {
-      const session = await sessionRepo.findByTokenHash(sessionToken);
+      const tokenHash = crypto.createHash('sha256').update(sessionToken).digest('hex');
+      const session =
+        (await sessionRepo.findByTokenHash(tokenHash)) ||
+        (await sessionRepo.findByTokenHash(sessionToken));
       if (session) {
         const user = await userRepo.findById(session.userId);
         if (user) {

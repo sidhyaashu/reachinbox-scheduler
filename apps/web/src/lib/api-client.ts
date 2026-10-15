@@ -152,7 +152,7 @@ export const apiClient = {
       return request<{ scheduledCount: number; emails: EmailRecord[] }>('/api/v1/emails/batch', {
         method: 'POST',
         body: JSON.stringify({
-          senderId: payload.senderId || '00000000-0000-0000-0000-000000000002',
+          senderId: payload.senderId,
           leads,
           subject: payload.subject,
           body: payload.body,
@@ -164,9 +164,15 @@ export const apiClient = {
     },
 
     async cancel(emailId: string): Promise<void> {
-      await request(`/api/v1/emails/${emailId}`, {
-        method: 'DELETE',
-      });
+      try {
+        await request(`/api/v1/emails/${emailId}`, {
+          method: 'DELETE',
+        });
+      } catch {
+        await request(`/api/v1/emails/${emailId}/cancel`, {
+          method: 'POST',
+        });
+      }
     },
   },
 
