@@ -54,8 +54,8 @@
 | **Phase 6** | Google OAuth session auth & Slack OAuth rate-limit alert integration | ✅ **Completed** | Real OAuth flows, secure cookie session, 30 Vitest tests |
 | **Phase 7** | Search service with Elasticsearch, async indexing & reindexing | ✅ **Completed** | Tenant-isolated search, index mappings, 32 tests |
 | **Phase 8** | API Gateway, BFF aggregation layer, Nginx reverse proxy | ✅ **Completed** | Unified entry point, Bull-board, proxy routing, 34 tests |
-| **Phase 9** | Docker Compose orchestration, persistent volumes, healthchecks | 🔄 **In Progress** | Postgres, Redis, Elasticsearch, apps in Docker |
-| **Phase 10** | Structured logging, OpenTelemetry / Application Insights, metrics | ⏳ Pending | Correlation IDs, Bull-board dashboard |
+| **Phase 9** | Docker Compose orchestration, persistent volumes, healthchecks | ✅ **Completed** | Multi-stage Dockerfile, compose config validated |
+| **Phase 10** | Structured logging, OpenTelemetry / Application Insights, metrics | 🔄 **In Progress** | Correlation IDs, structured JSON logger |
 | **Phase 11** | Concurrency, restart persistence & 1,000-burst load testing | ⏳ Pending | Failure injection, restart test script |
 | **Phase 12** | Frontend implementation (Next.js / Tailwind / shadcn) per Figma | ⏳ Pending | Login, Compose modal/page, Scheduled/Sent tables |
 | **Phase 13** | Documentation, README, demo script, submission review | ⏳ Pending | GitHub access to Mitrajit & Yadav036, Loom/Video |
