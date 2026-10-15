@@ -11,6 +11,7 @@ import {
   ConflictError,
   NotFoundError,
 } from '@reachinbox/shared';
+import { removeEmailJob } from '@reachinbox/queue';
 
 export class EmailService {
   constructor(
@@ -165,6 +166,13 @@ export class EmailService {
     const cancelled = await this.emailRepo.cancelEmail(emailId, userId);
     if (!cancelled) {
       throw new ConflictError(`Email '${emailId}' cannot be cancelled as it is already being processed or sent.`);
+    }
+
+    // Proactively remove delayed job from BullMQ so it does not linger or execute as SKIPPED_CANCELLED
+    try {
+      await removeEmailJob(emailId);
+    } catch (err) {
+      console.warn(`[EmailService] Non-critical: Could not remove BullMQ job ${emailId}:`, err);
     }
   }
 }

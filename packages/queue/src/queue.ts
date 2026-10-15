@@ -46,6 +46,20 @@ export async function addEmailJob(
   return job.id || data.emailId;
 }
 
+export async function removeEmailJob(emailId: string): Promise<boolean> {
+  try {
+    const queue = getEmailQueue();
+    const job = await queue.getJob(emailId);
+    if (job) {
+      await job.remove();
+      return true;
+    }
+  } catch (err) {
+    console.warn(`[Queue] Could not remove BullMQ job ${emailId}:`, err);
+  }
+  return false;
+}
+
 export async function closeEmailQueue(): Promise<void> {
   if (emailQueue) {
     await emailQueue.close();
