@@ -7,7 +7,7 @@ import { Sidebar } from '../../components/Sidebar';
 import { EmailList } from '../../components/EmailList';
 import { ComposeView } from '../../components/ComposeView';
 import { EmailDetailView } from '../../components/EmailDetailView';
-import { Search, Filter, RotateCw, Menu, X, Check, Loader2 } from 'lucide-react';
+import { Search, Filter, RotateCw, Menu, X, Check, Loader2, Mail, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,6 +15,8 @@ import {
   DropdownMenuTrigger,
 } from '../../components/ui/dropdown-menu';
 import { useToast } from '../../components/Toast';
+import { formatRelativeTime } from '../../lib/utils';
+import { EmailRecord } from '../../lib/api-client';
 
 function DashboardContent() {
   const router = useRouter();
@@ -23,6 +25,8 @@ function DashboardContent() {
   const {
     loadDashboard,
     setSearchQuery,
+    searchResults,
+    isSearching,
     composeOpen,
     openCompose,
     closeCompose,
@@ -32,6 +36,7 @@ function DashboardContent() {
     selectedEmail,
     scheduledEmails,
     sentEmails,
+    counts,
     activeTab,
     setActiveTab,
     filterStatus,
@@ -43,7 +48,12 @@ function DashboardContent() {
 
   const { info } = useToast();
   const [localSearch, setLocalSearch] = useState('');
+  const [isDebouncing, setIsDebouncing] = useState(false);
+  const [isSearchMenuOpen, setIsSearchMenuOpen] = useState(false);
   const [spinning, setSpinning] = useState(false);
+
+  const searchContainerRef = React.useRef<HTMLDivElement>(null);
+  const searchInputRef = React.useRef<HTMLInputElement>(null);
 
   // 1. Initial dashboard data loading & Continuous Real-time Background Sync (Zero refresh required)
   useEffect(() => {
@@ -184,13 +194,42 @@ function DashboardContent() {
     setFilterStatus,
   ]);
 
-  // Debounced search
+  // Debounced search with visual debouncing state
   useEffect(() => {
+    if (!localSearch.trim()) {
+      setIsDebouncing(false);
+      setSearchQuery('');
+      return;
+    }
+
+    setIsDebouncing(true);
     const timer = setTimeout(() => {
       setSearchQuery(localSearch);
+      setIsDebouncing(false);
     }, 250);
     return () => clearTimeout(timer);
   }, [localSearch, setSearchQuery]);
+
+  // Close debouncer menu on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target as Node)) {
+        setIsSearchMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Escape') {
+      setIsSearchMenuOpen(false);
+      searchInputRef.current?.blur();
+    } else if (e.key === 'Enter') {
+      setIsSearchMenuOpen(false);
+      setSearchQuery(localSearch);
+    }
+  };
 
   const handleRefresh = async () => {
     setSpinning(true);
@@ -202,6 +241,42 @@ function DashboardContent() {
   const clearSearch = () => {
     setLocalSearch('');
     setSearchQuery('');
+    setIsSearchMenuOpen(false);
+  };
+
+  const allEmails = React.useMemo(() => {
+    return [...scheduledEmails, ...sentEmails];
+  }, [scheduledEmails, sentEmails]);
+
+  const localFilteredMatches = React.useMemo(() => {
+    const q = localSearch.trim().toLowerCase();
+    if (!q) return [];
+    return allEmails.filter(
+      (e) =>
+        (e.recipient && e.recipient.toLowerCase().includes(q)) ||
+        (e.subject && e.subject.toLowerCase().includes(q)) ||
+        (e.body && e.body.toLowerCase().includes(q))
+    );
+  }, [allEmails, localSearch]);
+
+  const debouncedMenuResults = React.useMemo(() => {
+    if (searchResults !== null && searchResults.length > 0) {
+      return searchResults;
+    }
+    return localFilteredMatches;
+  }, [searchResults, localFilteredMatches]);
+
+  const handleSelectSearchResult = (email: EmailRecord) => {
+    setIsSearchMenuOpen(false);
+    selectEmail(email);
+    const targetTab = email.status === 'SENT' ? 'sent' : 'scheduled';
+    if (activeTab !== targetTab) {
+      setActiveTab(targetTab);
+    }
+    const params = new URLSearchParams(window.location.search);
+    params.set('tab', targetTab);
+    params.set('emailId', email.id);
+    window.history.pushState(null, '', `/dashboard?${params.toString()}`);
   };
 
   const handleFilterChange = (status: 'ALL' | 'SCHEDULED' | 'PROCESSING' | 'SENT' | 'FAILED') => {
@@ -292,13 +367,19 @@ function DashboardContent() {
           <div className="flex-1 flex flex-col h-screen overflow-hidden">
             {/* Top Search & Filter Bar - Responsive across 7 breakpoints */}
             <div className="px-3 2xs:px-4 xs:px-5 sm:px-6 md:px-8 py-3 border-b border-slate-100 flex items-center gap-2 2xs:gap-3 bg-white shrink-0">
-              {/* Search Pill Input matching Figma */}
-              <div className="relative flex-1 max-w-xl">
+              {/* Search Pill Input with Floating Debounced Results Menu */}
+              <div ref={searchContainerRef} className="relative flex-1 max-w-xl">
                 <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
+                  ref={searchInputRef}
                   type="text"
                   value={localSearch}
-                  onChange={(e) => setLocalSearch(e.target.value)}
+                  onChange={(e) => {
+                    setLocalSearch(e.target.value);
+                    setIsSearchMenuOpen(true);
+                  }}
+                  onFocus={() => setIsSearchMenuOpen(true)}
+                  onKeyDown={handleSearchKeyDown}
                   placeholder="Search emails by recipient or subject..."
                   autoComplete="off"
                   spellCheck={false}
@@ -313,6 +394,244 @@ function DashboardContent() {
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
+                )}
+
+                {/* Debounced Search Results Menu - Gmail / Email Client Style */}
+                {isSearchMenuOpen && (
+                  <div
+                    className="absolute left-0 right-0 top-full mt-2 bg-white rounded-2xl border border-slate-200/90 shadow-2xl z-50 overflow-hidden flex flex-col animate-in fade-in-0 zoom-in-95 duration-150 backdrop-blur-sm"
+                    style={{ maxHeight: 'min(440px, calc(100vh - 140px))' }}
+                  >
+                    {/* Header Strip */}
+                    <div className="px-3.5 py-2 bg-slate-50/80 border-b border-slate-100 flex items-center justify-between text-[11px] text-slate-500 font-medium select-none">
+                      {isDebouncing || isSearching ? (
+                        <div className="flex items-center gap-2 text-slate-600">
+                          <Loader2 className="w-3.5 h-3.5 animate-spin text-[#00a84e]" />
+                          <span>Searching for &ldquo;{localSearch}&rdquo;...</span>
+                        </div>
+                      ) : localSearch.trim() ? (
+                        <div className="flex items-center gap-1.5 font-semibold text-slate-700">
+                          <span>Search Results</span>
+                          <span className="text-[10px] font-normal px-2 py-0.5 rounded-full bg-emerald-50 text-[#00873d]">
+                            {debouncedMenuResults.length} found
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="font-semibold text-slate-700">Quick Filters &amp; Views</span>
+                      )}
+
+                      <div className="flex items-center gap-2">
+                        {isDebouncing ? (
+                          <span className="text-[10px] text-slate-400 bg-white px-1.5 py-0.5 rounded border border-slate-200">
+                            debouncing 250ms
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-slate-400">
+                            <kbd className="px-1 py-0.5 bg-white border border-slate-200 rounded text-[9px] font-sans">Esc</kbd> to close
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Results / Suggestions Body */}
+                    <div className="flex-1 overflow-y-auto">
+                      {isDebouncing || isSearching ? (
+                        /* Loading state with pulse animation */
+                        <div className="p-2 space-y-1.5">
+                          {[1, 2, 3].map((n) => (
+                            <div key={n} className="flex items-center gap-3 p-2.5 rounded-xl bg-slate-50/70 animate-pulse">
+                              <div className="w-8 h-8 rounded-full bg-slate-200 shrink-0" />
+                              <div className="flex-1 space-y-1.5">
+                                <div className="h-3 w-1/3 bg-slate-200 rounded" />
+                                <div className="h-2.5 w-2/3 bg-slate-100 rounded" />
+                              </div>
+                              <div className="h-5 w-16 bg-slate-200 rounded-full" />
+                            </div>
+                          ))}
+                        </div>
+                      ) : localSearch.trim() ? (
+                        debouncedMenuResults.length > 0 ? (
+                          /* Matching Results List */
+                          <div className="p-1.5 divide-y divide-slate-100/70">
+                            {debouncedMenuResults.slice(0, 8).map((email) => {
+                              const isSent = email.status === 'SENT';
+                              const isScheduled =
+                                email.status === 'SCHEDULED' ||
+                                email.status === 'QUEUED' ||
+                                email.status === 'DEFERRED';
+                              const isFailed = email.status === 'FAILED';
+                              const recipientInitial = (email.recipient?.[0] || 'R').toUpperCase();
+
+                              return (
+                                <div
+                                  key={email.id}
+                                  onClick={() => handleSelectSearchResult(email)}
+                                  className="group flex items-center justify-between gap-3 p-2.5 rounded-xl hover:bg-emerald-50/40 hover:border-emerald-100 transition-colors cursor-pointer"
+                                >
+                                  {/* Left: Avatar + Details */}
+                                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                                    <div
+                                      className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${
+                                        isSent
+                                          ? 'bg-[#e8f5e9] text-[#00873d]'
+                                          : isScheduled
+                                          ? 'bg-[#fef3c7] text-[#b45309]'
+                                          : isFailed
+                                          ? 'bg-[#fee2e2] text-[#b91c1c]'
+                                          : 'bg-slate-100 text-slate-700'
+                                      }`}
+                                    >
+                                      {recipientInitial}
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="font-semibold text-xs text-slate-900 truncate">
+                                          {email.recipient}
+                                        </span>
+                                        <span className="text-slate-300">•</span>
+                                        <span className="text-xs text-slate-600 truncate group-hover:text-slate-900 transition-colors">
+                                          {email.subject || '(No subject)'}
+                                        </span>
+                                      </div>
+                                      <p className="text-[11px] text-slate-400 truncate mt-0.5">
+                                        {email.body ? email.body.slice(0, 75) : 'No message body preview'}
+                                      </p>
+                                    </div>
+                                  </div>
+
+                                  {/* Right: Status badge & timestamp */}
+                                  <div className="flex items-center gap-2 shrink-0">
+                                    <span
+                                      className={`text-[10px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 ${
+                                        isSent
+                                          ? 'bg-[#e8f5e9] text-[#00873d]'
+                                          : isScheduled
+                                          ? 'bg-[#fef3c7] text-[#b45309]'
+                                          : isFailed
+                                          ? 'bg-[#fee2e2] text-[#b91c1c]'
+                                          : 'bg-slate-100 text-slate-600'
+                                      }`}
+                                    >
+                                      {isSent && <CheckCircle2 className="w-2.5 h-2.5" />}
+                                      {isScheduled && <Clock className="w-2.5 h-2.5" />}
+                                      {isFailed && <AlertCircle className="w-2.5 h-2.5" />}
+                                      {email.status}
+                                    </span>
+                                    <span className="text-[10px] text-slate-400 hidden sm:inline">
+                                      {formatRelativeTime(email.scheduledAt)}
+                                    </span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          /* No Results Found inside the menu matching user screenshot */
+                          <div className="py-7 px-4 text-center">
+                            <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-[#00a84e] flex items-center justify-center mx-auto mb-2.5">
+                              <Mail className="w-5 h-5" />
+                            </div>
+                            <p className="text-xs font-semibold text-slate-800">No matching emails found</p>
+                            <p className="text-[11px] text-slate-400 mt-1 max-w-xs mx-auto">
+                              No results match &ldquo;{localSearch}&rdquo;. Try another recipient or subject keyword.
+                            </p>
+                            <div className="mt-3.5 flex items-center justify-center gap-2">
+                              <button
+                                type="button"
+                                onClick={clearSearch}
+                                className="text-xs px-2.5 py-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium transition-colors cursor-pointer"
+                              >
+                                Clear search
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setIsSearchMenuOpen(false);
+                                  openCompose();
+                                }}
+                                className="text-xs px-2.5 py-1 rounded-md bg-[#e8f5e9] hover:bg-[#d4edda] text-[#00873d] font-medium transition-colors cursor-pointer"
+                              >
+                                + Compose New Email
+                              </button>
+                            </div>
+                          </div>
+                        )
+                      ) : (
+                        /* Empty Search state: Quick Filters & Views */
+                        <div className="p-2 space-y-1">
+                          <div
+                            onClick={() => {
+                              setActiveTab('scheduled');
+                              setIsSearchMenuOpen(false);
+                            }}
+                            className="flex items-center justify-between p-2.5 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer"
+                          >
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-6 h-6 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
+                                <Clock className="w-3.5 h-3.5" />
+                              </div>
+                              <span className="text-xs font-medium text-slate-700">Scheduled Emails</span>
+                            </div>
+                            <span className="text-[11px] text-slate-400 font-semibold">{scheduledEmails.length}</span>
+                          </div>
+
+                          <div
+                            onClick={() => {
+                              setActiveTab('sent');
+                              setIsSearchMenuOpen(false);
+                            }}
+                            className="flex items-center justify-between p-2.5 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer"
+                          >
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-6 h-6 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                              </div>
+                              <span className="text-xs font-medium text-slate-700">Sent Emails</span>
+                            </div>
+                            <span className="text-[11px] text-slate-400 font-semibold">{sentEmails.length}</span>
+                          </div>
+
+                          <div
+                            onClick={() => {
+                              setActiveTab('drafts');
+                              setIsSearchMenuOpen(false);
+                            }}
+                            className="flex items-center justify-between p-2.5 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer"
+                          >
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-6 h-6 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center">
+                                <Mail className="w-3.5 h-3.5" />
+                              </div>
+                              <span className="text-xs font-medium text-slate-700">Drafts</span>
+                            </div>
+                            <span className="text-[11px] text-slate-400 font-semibold">{counts.drafts}</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Footer / Shortcuts Strip */}
+                    <div className="px-3.5 py-2 bg-slate-50/90 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400 select-none">
+                      <div className="flex items-center gap-2">
+                        <span>
+                          <kbd className="px-1 py-0.5 bg-white border border-slate-200 rounded font-sans">Enter</kbd> to view full list
+                        </span>
+                        <span>•</span>
+                        <span>
+                          <kbd className="px-1 py-0.5 bg-white border border-slate-200 rounded font-sans">Esc</kbd> to close
+                        </span>
+                      </div>
+                      {localSearch && (
+                        <button
+                          type="button"
+                          onClick={clearSearch}
+                          className="text-[#00a84e] hover:underline font-medium cursor-pointer"
+                        >
+                          Clear query
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 )}
               </div>
 

@@ -314,21 +314,34 @@ export const useSchedulerStore = create<SchedulerState>((set, get) => ({
 
   setSearchQuery: async (query: string) => {
     set({ searchQuery: query });
-    if (!query.trim() || query.length < 2) {
+    const trimmed = query.trim();
+    if (!trimmed) {
       set({ searchResults: null, isSearching: false });
       return;
     }
 
     const reqId = ++activeSearchRequestId;
     set({ isSearching: true });
+
+    // Pre-calculate local matches across known scheduled and sent emails
+    const q = trimmed.toLowerCase();
+    const all = [...get().scheduledEmails, ...get().sentEmails];
+    const localMatches = all.filter(
+      (e) =>
+        (e.recipient && e.recipient.toLowerCase().includes(q)) ||
+        (e.subject && e.subject.toLowerCase().includes(q)) ||
+        (e.body && e.body.toLowerCase().includes(q))
+    );
+
     try {
-      const res = await apiClient.search.searchEmails(query);
+      const res = await apiClient.search.searchEmails(trimmed);
       if (reqId === activeSearchRequestId && get().searchQuery === query) {
-        set({ searchResults: res.items, isSearching: false });
+        const items = res.items && res.items.length > 0 ? res.items : localMatches;
+        set({ searchResults: items, isSearching: false });
       }
     } catch {
       if (reqId === activeSearchRequestId) {
-        set({ isSearching: false });
+        set({ searchResults: localMatches, isSearching: false });
       }
     }
   },
