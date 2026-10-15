@@ -1,6 +1,15 @@
 import { create } from 'zustand';
 import { apiClient, UserProfile, EmailRecord, ScheduleBatchPayload, DashboardSummary } from './api-client';
 
+export interface ComposeDraft {
+  recipients: string[];
+  subject: string;
+  body: string;
+  delaySeconds: number;
+  hourlyLimit: number;
+  scheduledAt: string;
+}
+
 interface SchedulerState {
   // User & Profile
   user: UserProfile | null;
@@ -19,6 +28,7 @@ interface SchedulerState {
   // Compose Screen state
   composeOpen: boolean;
   sendLaterOpen: boolean;
+  composeDraft: ComposeDraft | null;
   // Search
   searchQuery: string;
   searchResults: EmailRecord[] | null;
@@ -39,11 +49,15 @@ interface SchedulerState {
   closeCompose: () => void;
   openSendLater: () => void;
   closeSendLater: () => void;
+  setComposeDraft: (draft: Partial<ComposeDraft>) => void;
+  clearComposeDraft: () => void;
   setSearchQuery: (query: string) => void;
   cancelEmail: (emailId: string) => Promise<void>;
   scheduleCampaign: (payload: ScheduleBatchPayload) => Promise<{ scheduledCount: number }>;
   logout: () => Promise<void>;
 }
+
+let activeSearchRequestId = 0;
 
 export const useSchedulerStore = create<SchedulerState>((set, get) => ({
   user: null,
@@ -58,6 +72,7 @@ export const useSchedulerStore = create<SchedulerState>((set, get) => ({
   detailOpen: false,
   composeOpen: false,
   sendLaterOpen: false,
+  composeDraft: null,
   searchQuery: '',
   searchResults: null,
   isSearching: false,
@@ -86,16 +101,6 @@ export const useSchedulerStore = create<SchedulerState>((set, get) => ({
             avatarUrl: null,
           };
         }
-      }
-
-      // If still unauthenticated, provide clean fallback profile
-      if (!user) {
-        user = {
-          id: '00000000-0000-0000-0000-000000000001',
-          email: 'demo@reachinbox.ai',
-          name: 'Demo User',
-          avatarUrl: null,
-        };
       }
 
       const scheduledItems = scheduledRes.items.length > 0 ? scheduledRes.items : (summary?.scheduledEmails || []);
@@ -157,6 +162,23 @@ export const useSchedulerStore = create<SchedulerState>((set, get) => ({
     set({ sendLaterOpen: false });
   },
 
+  setComposeDraft: (draft: Partial<ComposeDraft>) => {
+    set((state) => ({
+      composeDraft: {
+        recipients: draft.recipients ?? state.composeDraft?.recipients ?? [],
+        subject: draft.subject ?? state.composeDraft?.subject ?? '',
+        body: draft.body ?? state.composeDraft?.body ?? '',
+        delaySeconds: draft.delaySeconds ?? state.composeDraft?.delaySeconds ?? 2,
+        hourlyLimit: draft.hourlyLimit ?? state.composeDraft?.hourlyLimit ?? 200,
+        scheduledAt: draft.scheduledAt ?? state.composeDraft?.scheduledAt ?? '',
+      },
+    }));
+  },
+
+  clearComposeDraft: () => {
+    set({ composeDraft: null });
+  },
+
   setSearchQuery: async (query: string) => {
     set({ searchQuery: query });
     if (!query.trim() || query.length < 2) {
@@ -164,12 +186,18 @@ export const useSchedulerStore = create<SchedulerState>((set, get) => ({
       return;
     }
 
+    const reqId = ++activeSearchRequestId;
     set({ isSearching: true });
     try {
       const res = await apiClient.search.searchEmails(query);
-      set({ searchResults: res.items, isSearching: false });
+      // Guard against out-of-order asynchronous responses (race conditions)
+      if (reqId === activeSearchRequestId && get().searchQuery === query) {
+        set({ searchResults: res.items, isSearching: false });
+      }
     } catch {
-      set({ isSearching: false });
+      if (reqId === activeSearchRequestId) {
+        set({ isSearching: false });
+      }
     }
   },
 
@@ -188,6 +216,7 @@ export const useSchedulerStore = create<SchedulerState>((set, get) => ({
 
   scheduleCampaign: async (payload: ScheduleBatchPayload) => {
     const res = await apiClient.emails.scheduleBatch(payload);
+    get().clearComposeDraft();
     await get().loadDashboard();
     set({ activeTab: 'scheduled', composeOpen: false });
     return res;
@@ -195,6 +224,15 @@ export const useSchedulerStore = create<SchedulerState>((set, get) => ({
 
   logout: async () => {
     await apiClient.auth.logout();
-    set({ user: null });
+    set({ user: null, sender: null });
   },
 }));
+
+// Global listener for 401 Unauthorized to invalidate session state immediately
+apiClient.auth.onUnauthorized(() => {
+  useSchedulerStore.setState({
+    user: null,
+    sender: null,
+    isLoading: false,
+  });
+});

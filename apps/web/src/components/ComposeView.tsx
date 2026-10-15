@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useSchedulerStore } from '../lib/store';
 import {
   ArrowLeft,
@@ -44,41 +45,92 @@ interface AttachmentFile {
 }
 
 export function ComposeView() {
-  const { closeCompose, scheduleCampaign, user, sender } = useSchedulerStore();
+  const router = useRouter();
+  const {
+    closeCompose,
+    scheduleCampaign,
+    user,
+    sender,
+    composeDraft,
+    setComposeDraft,
+    clearComposeDraft,
+    activeTab,
+  } = useSchedulerStore();
   const { success, error } = useToast();
 
   const [toInput, setToInput] = useState('');
-  const [recipients, setRecipients] = useState<string[]>([]);
+  const [recipients, setRecipients] = useState<string[]>(() => composeDraft?.recipients || []);
   const [showAllRecipients, setShowAllRecipients] = useState(false);
-  const [subject, setSubject] = useState('');
-  const [body, setBody] = useState('');
+  const [subject, setSubject] = useState(() => composeDraft?.subject || '');
+  const [body, setBody] = useState(() => composeDraft?.body || '');
   const [selectedSenderEmail, setSelectedSenderEmail] = useState('');
 
-  // Initial delay & hourly limit from sender or defaults
-  const [delaySeconds, setDelaySeconds] = useState(2);
-  const [hourlyLimit, setHourlyLimit] = useState(200);
+  // Initial delay & hourly limit from sender or draft or defaults
+  const [delaySeconds, setDelaySeconds] = useState(() => composeDraft?.delaySeconds ?? 2);
+  const [hourlyLimit, setHourlyLimit] = useState(() => composeDraft?.hourlyLimit ?? 200);
 
   // Sync sender info once loaded
   useEffect(() => {
     if (sender) {
       setSelectedSenderEmail(sender.email);
-      if (sender.minDelaySeconds) setDelaySeconds(sender.minDelaySeconds);
-      if (sender.hourlyLimit) setHourlyLimit(sender.hourlyLimit);
+      if (sender.minDelaySeconds && !composeDraft) setDelaySeconds(sender.minDelaySeconds);
+      if (sender.hourlyLimit && !composeDraft) setHourlyLimit(sender.hourlyLimit);
     } else if (user?.email) {
       setSelectedSenderEmail(user.email);
     } else {
       setSelectedSenderEmail('outreach@reachinbox.ai');
     }
-  }, [sender, user]);
+  }, [sender, user, composeDraft]);
 
   // Send Later Popover state
   const [sendLaterOpen, setSendLaterOpen] = useState(false);
   const [scheduledAt, setScheduledAt] = useState(() => {
+    if (composeDraft?.scheduledAt) return composeDraft.scheduledAt;
     const d = new Date(Date.now() + 60 * 60 * 1000); // 1 hour ahead
     d.setSeconds(0, 0);
     const pad = (n: number) => n.toString().padStart(2, '0');
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
   });
+
+  // Keep draft in sync with changes
+  useEffect(() => {
+    setComposeDraft({
+      recipients,
+      subject,
+      body,
+      delaySeconds,
+      hourlyLimit,
+      scheduledAt,
+    });
+  }, [recipients, subject, body, delaySeconds, hourlyLimit, scheduledAt, setComposeDraft]);
+
+  const handleBack = () => {
+    setComposeDraft({
+      recipients,
+      subject,
+      body,
+      delaySeconds,
+      hourlyLimit,
+      scheduledAt,
+    });
+    closeCompose();
+    router.push(`/dashboard?tab=${activeTab}`);
+  };
+
+  // Keyboard shortcut: Escape to close Send Later popover or return to email list
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (sendLaterOpen) {
+          setSendLaterOpen(false);
+        } else {
+          handleBack();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [sendLaterOpen, recipients, subject, body, delaySeconds, hourlyLimit, scheduledAt, activeTab]);
 
   // Real attachments state
   const [attachment, setAttachment] = useState<AttachmentFile | null>(null);
@@ -209,7 +261,9 @@ export function ComposeView() {
       });
 
       success('Outreach Scheduled', `Successfully queued ${res.scheduledCount} emails into BullMQ!`);
+      clearComposeDraft();
       closeCompose();
+      router.push('/dashboard?tab=scheduled');
     } catch (err: any) {
       error('Scheduling Error', err.message);
     } finally {
@@ -237,7 +291,7 @@ export function ComposeView() {
         <div className="flex items-center gap-2.5 2xs:gap-3">
           <button
             type="button"
-            onClick={closeCompose}
+            onClick={handleBack}
             className="p-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors cursor-pointer"
             title="Back to email list"
           >

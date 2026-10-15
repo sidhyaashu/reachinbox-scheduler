@@ -1,31 +1,35 @@
 'use client';
 
-import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent } from '../components/ui/card';
 import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
 import { Separator } from '../components/ui/separator';
 import { apiClient } from '../lib/api-client';
 import { useToast } from '../components/Toast';
-import { Loader2 } from 'lucide-react';
+import { Loader2, AlertCircle } from 'lucide-react';
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const returnTo = searchParams.get('returnTo') || '/dashboard';
+  const sessionExpired = searchParams.get('sessionExpired') === 'true';
+
   const { success, error } = useToast();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
 
-  // If already logged in, redirect directly to dashboard
-  React.useEffect(() => {
+  // If already logged in, redirect directly to dashboard or returnTo
+  useEffect(() => {
     let mounted = true;
     apiClient.auth
       .getCurrentUser()
       .then((currentUser) => {
         if (mounted && currentUser) {
-          router.replace('/dashboard');
+          router.replace(returnTo);
         } else if (mounted) {
           setCheckingAuth(false);
         }
@@ -36,7 +40,7 @@ export default function LoginPage() {
     return () => {
       mounted = false;
     };
-  }, [router]);
+  }, [router, returnTo]);
 
   const deriveDisplayName = (emailStr: string): string => {
     const prefix = emailStr.split('@')[0] || 'User';
@@ -54,7 +58,7 @@ export default function LoginPage() {
       const dynamicName = deriveDisplayName(loginEmail);
       await apiClient.auth.loginDemo(loginEmail, dynamicName);
       success('Welcome back', `Signed in as ${dynamicName}`);
-      router.replace('/dashboard');
+      router.replace(returnTo);
     } catch (err: any) {
       error('Login failed', err.message);
     } finally {
@@ -63,7 +67,7 @@ export default function LoginPage() {
   };
 
   const handleGoogleLogin = () => {
-    window.location.href = '/auth/google';
+    window.location.href = `/auth/google?returnTo=${encodeURIComponent(returnTo)}`;
   };
 
   if (checkingAuth) {
@@ -78,6 +82,13 @@ export default function LoginPage() {
     <div className="min-h-screen w-full bg-[#fcfcfc] flex items-center justify-center p-3 2xs:p-4 xs:p-6 sm:p-8">
       <Card className="w-full max-w-[380px] p-6 2xs:p-8 sm:p-10 rounded-2xl border border-slate-100/80 bg-white shadow-[0_4px_24px_rgba(0,0,0,0.03)]">
         <CardContent className="p-0 flex flex-col items-center">
+          {sessionExpired && (
+            <div className="w-full mb-5 p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0 text-amber-600" />
+              <span>Your session expired. Please sign in again.</span>
+            </div>
+          )}
+
           {/* Title */}
           <h1 className="text-xl 2xs:text-2xl font-bold tracking-tight text-slate-900 mb-6 2xs:mb-8 select-none">
             Login
@@ -156,5 +167,19 @@ export default function LoginPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen w-full bg-[#fcfcfc] flex items-center justify-center">
+          <Loader2 className="w-8 h-8 animate-spin text-[#00a84e]" />
+        </div>
+      }
+    >
+      <LoginContent />
+    </Suspense>
   );
 }

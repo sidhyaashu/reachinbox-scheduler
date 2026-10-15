@@ -27,6 +27,17 @@ export function Sidebar() {
     setMobileSidebarOpen,
   } = useSchedulerStore();
 
+  // Dismiss mobile drawer on Escape key press
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && mobileSidebarOpen) {
+        setMobileSidebarOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [mobileSidebarOpen, setMobileSidebarOpen]);
+
   const handleLogout = async () => {
     await logout();
     router.replace('/');
@@ -111,6 +122,7 @@ export function Sidebar() {
           onClick={() => {
             openCompose();
             setMobileSidebarOpen(false);
+            router.push(`/dashboard?tab=${activeTab}&compose=true`);
           }}
           className="w-full h-10 rounded-full border-2 border-[#00a84e] bg-white text-[#00a84e] hover:bg-[#e8f5e9] font-semibold text-sm transition-all shadow-none cursor-pointer"
         >
@@ -129,6 +141,7 @@ export function Sidebar() {
             onClick={() => {
               setActiveTab('scheduled');
               setMobileSidebarOpen(false);
+              router.push('/dashboard?tab=scheduled');
             }}
             className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm transition-all cursor-pointer ${
               activeTab === 'scheduled'
@@ -155,6 +168,7 @@ export function Sidebar() {
             onClick={() => {
               setActiveTab('sent');
               setMobileSidebarOpen(false);
+              router.push('/dashboard?tab=sent');
             }}
             className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm transition-all cursor-pointer ${
               activeTab === 'sent'

@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useSchedulerStore } from '../lib/store';
 import {
   ArrowLeft,
@@ -20,10 +21,27 @@ import { formatFigmaScheduleTime } from '../lib/utils';
 import { useToast } from './Toast';
 
 export function EmailDetailView() {
-  const { selectedEmail, closeDetail, cancelEmail, user, sender } = useSchedulerStore();
+  const router = useRouter();
+  const { selectedEmail, closeDetail, cancelEmail, user, sender, activeTab } = useSchedulerStore();
   const { success, error, info } = useToast();
   const [isStarred, setIsStarred] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  const handleBack = () => {
+    closeDetail();
+    router.push(`/dashboard?tab=${activeTab}`);
+  };
+
+  // Keyboard shortcut: Escape to go back
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        handleBack();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeTab]);
 
   if (!selectedEmail) return null;
 
@@ -33,7 +51,7 @@ export function EmailDetailView() {
       try {
         await cancelEmail(selectedEmail.id);
         success('Email Cancelled', 'The scheduled outreach was removed from the queue');
-        closeDetail();
+        handleBack();
       } catch (err: any) {
         error('Cancellation failed', err.message);
       } finally {
@@ -69,7 +87,7 @@ export function EmailDetailView() {
         <div className="flex items-center gap-2.5 2xs:gap-3 overflow-hidden flex-1 min-w-0 pr-2">
           <button
             type="button"
-            onClick={closeDetail}
+            onClick={handleBack}
             className="p-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors shrink-0 cursor-pointer"
             title="Back to email list"
           >

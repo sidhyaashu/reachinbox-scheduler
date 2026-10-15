@@ -74,6 +74,26 @@ export interface SlackStatus {
   channelName?: string;
 }
 
+type UnauthorizedListener = () => void;
+const unauthorizedListeners: Set<UnauthorizedListener> = new Set();
+
+export function onUnauthorized(callback: UnauthorizedListener): () => void {
+  unauthorizedListeners.add(callback);
+  return () => {
+    unauthorizedListeners.delete(callback);
+  };
+}
+
+function notifyUnauthorized(): void {
+  unauthorizedListeners.forEach((listener) => {
+    try {
+      listener();
+    } catch (e) {
+      console.error('[API] Error in onUnauthorized listener:', e);
+    }
+  });
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const res = await fetch(path, {
     ...options,
@@ -85,6 +105,9 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   });
 
   if (!res.ok) {
+    if (res.status === 401) {
+      notifyUnauthorized();
+    }
     let errMsg = `Request failed with status ${res.status}`;
     try {
       const errorJson = await res.json();
@@ -101,6 +124,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
 export const apiClient = {
   auth: {
+    onUnauthorized,
     async getCurrentUser(): Promise<{ id: string; email: string; name: string } | null> {
       try {
         const res = await request<{ id: string; email: string; name: string }>('/auth/me');

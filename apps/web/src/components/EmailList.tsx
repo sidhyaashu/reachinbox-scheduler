@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useSchedulerStore } from '../lib/store';
 import { EmailRecord } from '../lib/api-client';
 import { Skeleton } from './ui/skeleton';
@@ -8,6 +9,7 @@ import { formatFigmaScheduleTime } from '../lib/utils';
 import { Clock, Star, Mail, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
 
 export function EmailList() {
+  const router = useRouter();
   const {
     activeTab,
     scheduledEmails,
@@ -89,7 +91,10 @@ export function EmailList() {
         </p>
         <button
           type="button"
-          onClick={openCompose}
+          onClick={() => {
+            openCompose();
+            router.push(`/dashboard?tab=${activeTab}&compose=true`);
+          }}
           className="text-xs font-semibold text-[#00a84e] bg-[#e8f5e9] hover:bg-[#d4edda] px-4 py-2 rounded-full transition-colors cursor-pointer"
         >
           + Compose New Email
@@ -144,7 +149,10 @@ export function EmailList() {
         return (
           <div
             key={email.id}
-            onClick={() => selectEmail(email)}
+            onClick={() => {
+              selectEmail(email);
+              router.push(`/dashboard?tab=${activeTab}&emailId=${email.id}`);
+            }}
             className="group flex flex-col sm:flex-row sm:items-center justify-between py-3 2xs:py-3.5 px-2.5 2xs:px-3 hover:bg-slate-50/80 cursor-pointer transition-colors text-sm gap-2 sm:gap-4"
           >
             {/* Mobile Layout: Stacked for < sm (320px - 639px) */}

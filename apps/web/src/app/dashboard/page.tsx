@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useSchedulerStore } from '../../lib/store';
 import { Sidebar } from '../../components/Sidebar';
 import { EmailList } from '../../components/EmailList';
 import { ComposeView } from '../../components/ComposeView';
 import { EmailDetailView } from '../../components/EmailDetailView';
-import { Search, Filter, RotateCw, Menu, X, Check } from 'lucide-react';
+import { Search, Filter, RotateCw, Menu, X, Check, Loader2 } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,26 +16,105 @@ import {
 } from '../../components/ui/dropdown-menu';
 import { useToast } from '../../components/Toast';
 
-export default function DashboardPage() {
+function DashboardContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
   const {
     loadDashboard,
     setSearchQuery,
     composeOpen,
+    openCompose,
+    closeCompose,
     detailOpen,
+    selectEmail,
+    closeDetail,
+    selectedEmail,
+    scheduledEmails,
+    sentEmails,
     activeTab,
+    setActiveTab,
     filterStatus,
     setFilterStatus,
     setMobileSidebarOpen,
     user,
+    isLoading,
   } = useSchedulerStore();
 
   const { info } = useToast();
   const [localSearch, setLocalSearch] = useState('');
   const [spinning, setSpinning] = useState(false);
 
+  // 1. Initial dashboard data loading
   useEffect(() => {
     loadDashboard();
   }, [loadDashboard]);
+
+  // 2. Auth Route Guard: unauthenticated visitors are redirected to Login with returnTo
+  useEffect(() => {
+    if (!isLoading && !user) {
+      const returnUrl = typeof window !== 'undefined' ? `${window.location.pathname}${window.location.search}` : '/dashboard';
+      router.replace(`/?returnTo=${encodeURIComponent(returnUrl)}`);
+    }
+  }, [isLoading, user, router]);
+
+  // 3. Synchronize URL query parameters with active views & browser history (Back/Forward)
+  const urlTab = searchParams.get('tab');
+  const urlCompose = searchParams.get('compose');
+  const urlEmailId = searchParams.get('emailId');
+  const urlStatus = searchParams.get('status');
+
+  useEffect(() => {
+    // Sync tab
+    if (urlTab === 'sent' && activeTab !== 'sent') {
+      setActiveTab('sent');
+    } else if (urlTab === 'scheduled' && activeTab !== 'scheduled') {
+      setActiveTab('scheduled');
+    }
+
+    // Sync Compose view
+    if (urlCompose === 'true') {
+      if (!composeOpen) openCompose();
+    } else {
+      if (composeOpen) closeCompose();
+    }
+
+    // Sync Email Detail view
+    if (urlEmailId) {
+      const allEmails = [...scheduledEmails, ...sentEmails];
+      const match = allEmails.find((e) => e.id === urlEmailId);
+      if (match && (!selectedEmail || selectedEmail.id !== urlEmailId)) {
+        selectEmail(match);
+      }
+    } else {
+      if (detailOpen) closeDetail();
+    }
+
+    // Sync Filter status
+    if (urlStatus && ['ALL', 'SCHEDULED', 'PROCESSING', 'SENT', 'FAILED'].includes(urlStatus)) {
+      if (filterStatus !== urlStatus) {
+        setFilterStatus(urlStatus as any);
+      }
+    }
+  }, [
+    urlTab,
+    urlCompose,
+    urlEmailId,
+    urlStatus,
+    activeTab,
+    composeOpen,
+    detailOpen,
+    selectedEmail,
+    scheduledEmails,
+    sentEmails,
+    filterStatus,
+    setActiveTab,
+    openCompose,
+    closeCompose,
+    selectEmail,
+    closeDetail,
+    setFilterStatus,
+  ]);
 
   // Debounced search
   useEffect(() => {
@@ -55,6 +135,35 @@ export default function DashboardPage() {
     setLocalSearch('');
     setSearchQuery('');
   };
+
+  const handleFilterChange = (status: 'ALL' | 'SCHEDULED' | 'PROCESSING' | 'SENT' | 'FAILED') => {
+    setFilterStatus(status);
+    const params = new URLSearchParams(searchParams.toString());
+    if (status === 'ALL') {
+      params.delete('status');
+    } else {
+      params.set('status', status);
+    }
+    router.push(`/dashboard?${params.toString()}`);
+  };
+
+  // Full loading screen before auth or dashboard initial data is confirmed
+  if (isLoading && !user) {
+    return (
+      <div className="min-h-screen w-full bg-[#fcfcfc] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-[#00a84e]" />
+      </div>
+    );
+  }
+
+  // If unauthenticated and finished loading, show spinner while router redirects
+  if (!user) {
+    return (
+      <div className="min-h-screen w-full bg-[#fcfcfc] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-[#00a84e]" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen w-full bg-white overflow-hidden text-slate-900 font-sans">
@@ -139,35 +248,35 @@ export default function DashboardPage() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-44 bg-white border border-slate-100 shadow-xl">
                   <DropdownMenuItem
-                    onClick={() => setFilterStatus('ALL')}
+                    onClick={() => handleFilterChange('ALL')}
                     className="flex items-center justify-between text-xs cursor-pointer"
                   >
                     <span>All Statuses</span>
                     {filterStatus === 'ALL' && <Check className="w-3.5 h-3.5 text-[#00a84e]" />}
                   </DropdownMenuItem>
                   <DropdownMenuItem
-                    onClick={() => setFilterStatus('SCHEDULED')}
+                    onClick={() => handleFilterChange('SCHEDULED')}
                     className="flex items-center justify-between text-xs cursor-pointer"
                   >
                     <span>Scheduled</span>
                     {filterStatus === 'SCHEDULED' && <Check className="w-3.5 h-3.5 text-[#00a84e]" />}
                   </DropdownMenuItem>
                   <DropdownMenuItem
-                    onClick={() => setFilterStatus('SENT')}
+                    onClick={() => handleFilterChange('SENT')}
                     className="flex items-center justify-between text-xs cursor-pointer"
                   >
                     <span>Sent</span>
                     {filterStatus === 'SENT' && <Check className="w-3.5 h-3.5 text-[#00a84e]" />}
                   </DropdownMenuItem>
                   <DropdownMenuItem
-                    onClick={() => setFilterStatus('PROCESSING')}
+                    onClick={() => handleFilterChange('PROCESSING')}
                     className="flex items-center justify-between text-xs cursor-pointer"
                   >
                     <span>Processing</span>
                     {filterStatus === 'PROCESSING' && <Check className="w-3.5 h-3.5 text-[#00a84e]" />}
                   </DropdownMenuItem>
                   <DropdownMenuItem
-                    onClick={() => setFilterStatus('FAILED')}
+                    onClick={() => handleFilterChange('FAILED')}
                     className="flex items-center justify-between text-xs cursor-pointer"
                   >
                     <span>Failed</span>
@@ -195,5 +304,19 @@ export default function DashboardPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen w-full bg-[#fcfcfc] flex items-center justify-center">
+          <Loader2 className="w-8 h-8 animate-spin text-[#00a84e]" />
+        </div>
+      }
+    >
+      <DashboardContent />
+    </Suspense>
   );
 }
