@@ -16,6 +16,27 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(true);
+
+  // If already logged in, redirect directly to dashboard
+  React.useEffect(() => {
+    let mounted = true;
+    apiClient.auth
+      .getCurrentUser()
+      .then((currentUser) => {
+        if (mounted && currentUser) {
+          router.replace('/dashboard');
+        } else if (mounted) {
+          setCheckingAuth(false);
+        }
+      })
+      .catch(() => {
+        if (mounted) setCheckingAuth(false);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [router]);
 
   const deriveDisplayName = (emailStr: string): string => {
     const prefix = emailStr.split('@')[0] || 'User';
@@ -33,7 +54,7 @@ export default function LoginPage() {
       const dynamicName = deriveDisplayName(loginEmail);
       await apiClient.auth.loginDemo(loginEmail, dynamicName);
       success('Welcome back', `Signed in as ${dynamicName}`);
-      router.push('/dashboard');
+      router.replace('/dashboard');
     } catch (err: any) {
       error('Login failed', err.message);
     } finally {
@@ -44,6 +65,14 @@ export default function LoginPage() {
   const handleGoogleLogin = () => {
     window.location.href = '/auth/google';
   };
+
+  if (checkingAuth) {
+    return (
+      <div className="min-h-screen w-full bg-[#fcfcfc] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-[#00a84e]" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen w-full bg-[#fcfcfc] flex items-center justify-center p-3 2xs:p-4 xs:p-6 sm:p-8">

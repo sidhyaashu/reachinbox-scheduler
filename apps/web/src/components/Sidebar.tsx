@@ -29,7 +29,7 @@ export function Sidebar() {
 
   const handleLogout = async () => {
     await logout();
-    router.push('/');
+    router.replace('/');
   };
 
   const displayName = user?.name || 'Demo User';
