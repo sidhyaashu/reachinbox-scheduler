@@ -91,9 +91,9 @@ jobs:
               echo "Preserving existing production .env."
             fi
 
-            # Deploy containers with Docker Compose
-            echo "Building and updating Docker Compose services..."
-            docker compose pull postgres redis elasticsearch caddy || true
+            # Dynamically pull registry images (postgres, redis, elasticsearch, caddy, etc.) while skipping local buildable microservices
+            echo "Pulling registry images dynamically..."
+            docker compose pull --ignore-buildable || true
             docker compose up -d --build --remove-orphans
 
             # Health verification
