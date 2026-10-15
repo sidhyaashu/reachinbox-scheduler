@@ -51,6 +51,27 @@ recipient,Skip Header,Test`;
       const result = parseLeadsFromTextOrCsv(input);
       expect(result.validEmails).toEqual(['alex@reachinbox.ai']);
     });
+
+    it('verifies all upload constraints: delimiters, custom domains, headers, deduplication', () => {
+      // Delimiters: commas, tabs (\t), semicolons (;), and newlines (\n, \r\n)
+      // Headers: email, name, leads, company
+      // Providers: gmail, outlook, yahoo, custom corporate domains (@company.com, @corp.ai)
+      // Duplicates: lead@company.com repeated
+      const content = `email\tname\tleads\tcompany\r\n` +
+        `user1@gmail.com,User One;lead@company.com\n` +
+        `partner@outlook.com\tlead@company.com;client@yahoo.com\r\n` +
+        `founder@startup.ai, LEAD@COMPANY.COM`;
+
+      const result = parseLeadsFromTextOrCsv(content);
+      expect(result.validEmails).toEqual([
+        'user1@gmail.com',
+        'lead@company.com',
+        'partner@outlook.com',
+        'client@yahoo.com',
+        'founder@startup.ai',
+      ]);
+      expect(result.validEmails).toHaveLength(5);
+    });
   });
 
   describe('formatFigmaScheduleTime', () => {

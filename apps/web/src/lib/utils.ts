@@ -121,13 +121,27 @@ export function parseLeadsFromTextOrCsv(content: string): {
   let invalidCount = 0;
 
   for (const token of rawTokens) {
-    // If it's a header like "email" or "lead", skip
-    if (token.toLowerCase() === 'email' || token.toLowerCase() === 'leads' || token.toLowerCase() === 'recipient') {
+    const lower = token.toLowerCase();
+
+    // If it's a common CSV/table header like "email", "leads", "name", skip
+    const commonHeaders = [
+      'email',
+      'emails',
+      'lead',
+      'leads',
+      'recipient',
+      'recipients',
+      'name',
+      'full name',
+      'first name',
+      'last name',
+      'company',
+    ];
+    if (commonHeaders.includes(lower)) {
       continue;
     }
 
     if (emailRegex.test(token)) {
-      const lower = token.toLowerCase();
       if (!seen.has(lower)) {
         seen.add(lower);
         validEmails.push(lower);
