@@ -104,6 +104,7 @@ services:
       SLACK_REDIRECT_URI: ${SLACK_REDIRECT_URI}
       SESSION_SECRET: ${SESSION_SECRET}
       WEB_URL: ${WEB_URL:-https://reachinbox.ovanthra.com}
+      APPLICATIONINSIGHTS_CONNECTION_STRING: ${APPLICATIONINSIGHTS_CONNECTION_STRING:-}
 
   scheduler:
     build:
@@ -131,6 +132,7 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       OUTBOX_POLL_INTERVAL_MS: 1000
+      APPLICATIONINSIGHTS_CONNECTION_STRING: ${APPLICATIONINSIGHTS_CONNECTION_STRING:-}
 
   worker:
     build:
@@ -165,6 +167,7 @@ services:
       ETHEREAL_HOST: ${ETHEREAL_HOST:-smtp.ethereal.email}
       ETHEREAL_PORT: ${ETHEREAL_PORT:-587}
       ETHEREAL_SECURE: ${ETHEREAL_SECURE:-false}
+      APPLICATIONINSIGHTS_CONNECTION_STRING: ${APPLICATIONINSIGHTS_CONNECTION_STRING:-}
 
   search:
     build:
@@ -190,6 +193,7 @@ services:
       PGUSER: reachinbox_user
       PGPASSWORD: reachinbox_password
       PGDATABASE: reachinbox_db
+      APPLICATIONINSIGHTS_CONNECTION_STRING: ${APPLICATIONINSIGHTS_CONNECTION_STRING:-}
 
   gateway:
     build:
@@ -217,6 +221,7 @@ services:
       PGDATABASE: reachinbox_db
       SESSION_SECRET: ${SESSION_SECRET}
       WEB_URL: ${WEB_URL:-https://reachinbox.ovanthra.com}
+      APPLICATIONINSIGHTS_CONNECTION_STRING: ${APPLICATIONINSIGHTS_CONNECTION_STRING:-}
 
   web:
     build:

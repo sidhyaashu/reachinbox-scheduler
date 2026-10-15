@@ -1,3 +1,8 @@
+import { initTelemetry } from '@reachinbox/shared';
+
+// Initialize Azure Application Insights before starting server
+initTelemetry('reachinbox-gateway');
+
 import { createApp } from './app.js';
 import { config } from './config.js';
 import { closeSharedRedis, closeEmailQueue } from '@reachinbox/queue';

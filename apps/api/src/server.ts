@@ -1,3 +1,8 @@
+import { initTelemetry } from '@reachinbox/shared';
+
+// Initialize Azure Application Insights before starting server
+initTelemetry('reachinbox-api');
+
 import { createApp } from './app.js';
 import { config } from './config.js';
 import { closePool } from '@reachinbox/database';

@@ -1,3 +1,8 @@
+import { initTelemetry } from '@reachinbox/shared';
+
+// Initialize Azure Application Insights before starting search service
+initTelemetry('reachinbox-search');
+
 import { createApp } from './app.js';
 import { config } from './config.js';
 import { ensureEmailIndex } from './index-manager.js';

@@ -23,6 +23,7 @@
     "vitest": "^3.0.5"
   },
   "dependencies": {
+    "applicationinsights": "^3.17.0",
     "axios": "^1.20.0"
   }
 }

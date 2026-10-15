@@ -1,3 +1,8 @@
+import { initTelemetry } from '@reachinbox/shared';
+
+// Initialize Azure Application Insights before starting scheduler
+initTelemetry('reachinbox-scheduler');
+
 import express from 'express';
 import { config } from './config.js';
 import { OutboxDispatcher } from './dispatcher.js';

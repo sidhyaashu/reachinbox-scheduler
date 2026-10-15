@@ -1,3 +1,8 @@
+import { initTelemetry } from '@reachinbox/shared';
+
+// Initialize Azure Application Insights before starting worker
+initTelemetry('reachinbox-worker');
+
 import express from 'express';
 import { config } from './config.js';
 import { createEmailWorker, closeEmailWorker } from './worker.js';
