@@ -54,7 +54,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Sync Code to Azure VM
+      - name: Deploy to Azure VM
         env:
           VM_SSH_KEY: ${{ secrets.VM_SSH_KEY }}
           VM_HOST: ${{ secrets.VM_HOST || '104.43.57.147' }}
@@ -76,23 +76,12 @@ jobs:
             -e "ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no" \
             ./ "$VM_USER@$VM_HOST:/opt/reachinbox/"
 
-      - name: Start Docker Compose on Azure VM
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.VM_HOST || '104.43.57.147' }}
-          username: ${{ secrets.VM_USERNAME || 'azureuser' }}
-          key: ${{ secrets.VM_SSH_KEY }}
-          passphrase: ${{ secrets.VM_SSH_PASSPHRASE }}
-          password: ${{ secrets.VM_PASSWORD }}
-          port: 22
-          timeout: 60s
-          command_timeout: 15m
-          script_stop: true
-          script: |
-            echo "🚀 Starting ReachInbox deployment on Azure VM..."
+          echo "🚀 Executing Docker Compose deployment on Azure VM..."
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" 'bash -s' << 'EOF'
+            set -e
             cd /opt/reachinbox
 
-            echo "📌 Deployed Git Commit: $(git log -n 1 --oneline 2>/dev/null || echo 'No git history')"
+            echo "Current deployed commit: $(git log -n 1 --oneline 2>/dev/null || echo 'No git history')"
 
             # Ensure production .env exists
             if [ ! -f .env ]; then
@@ -119,3 +108,4 @@ jobs:
             fi
 
             echo "🎉 Deployment successfully finished! Accessible at https://reachinbox.ovanthra.com"
+          EOF
