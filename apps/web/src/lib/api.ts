@@ -65,29 +65,54 @@ export interface SlackStatus {
   installedAt?: string;
 }
 
-async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const res = await fetch(path, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-    credentials: 'include', // Ensure cookies are passed
+import axios, { AxiosInstance, AxiosError } from 'axios';
+
+const apiAxios: AxiosInstance = axios.create({
+  baseURL: '',
+  withCredentials: true,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+apiAxios.interceptors.response.use(
+  (response) => response,
+  (error: AxiosError<any>) => {
+    const errMsg =
+      error.response?.data?.error?.message ||
+      error.response?.data?.message ||
+      error.message ||
+      'An unexpected error occurred';
+    return Promise.reject(new Error(errMsg));
+  }
+);
+
+async function request<T>(
+  url: string,
+  options: { method?: string; data?: any; body?: any; params?: any; headers?: any } = {}
+): Promise<T> {
+  const requestData =
+    options.data !== undefined
+      ? options.data
+      : typeof options.body === 'string'
+        ? (() => {
+            try {
+              return JSON.parse(options.body);
+            } catch {
+              return options.body;
+            }
+          })()
+        : options.body;
+
+  const res = await apiAxios.request<any>({
+    url,
+    method: options.method || 'GET',
+    data: requestData,
+    params: options.params,
+    headers: options.headers,
   });
 
-  if (!res.ok) {
-    let errMsg = `Request failed with status ${res.status}`;
-    try {
-      const errorJson = await res.json();
-      errMsg = errorJson?.error?.message || errorJson?.message || errMsg;
-    } catch {
-      // keep fallback
-    }
-    throw new Error(errMsg);
-  }
-
-  const json = await res.json();
-  return json.data ?? json;
+  return res.data?.data !== undefined ? res.data.data : res.data;
 }
 
 export const api = {

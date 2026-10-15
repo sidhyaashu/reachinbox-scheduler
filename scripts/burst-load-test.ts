@@ -1,3 +1,5 @@
+import axios from 'axios';
+
 /**
  * ReachInbox Scheduler — 1,000-Burst Load Test Simulation
  * Demonstrates system behavior when 1,000 emails are submitted simultaneously.
@@ -32,22 +34,15 @@ async function runBurstLoadTest() {
   const startTime = Date.now();
 
   try {
-    const res = await fetch(`${API_URL}/api/v1/emails/batch-schedule`, {
-      method: 'POST',
+    const res = await axios.post(`${API_URL}/api/v1/emails/batch-schedule`, payload, {
       headers: {
         'Content-Type': 'application/json',
         'X-User-Id': '00000000-0000-0000-0000-000000000001',
       },
-      body: JSON.stringify(payload),
     });
 
     const elapsed = Date.now() - startTime;
-    const body = (await res.json()) as any;
-
-    if (!res.ok) {
-      console.error(`[BurstTest] API returned status ${res.status}:`, body);
-      process.exit(1);
-    }
+    const body = res.data;
 
     console.log(`[BurstTest] Response received in ${elapsed}ms:`, {
       success: body.success,

@@ -1,3 +1,5 @@
+import axios, { AxiosInstance, AxiosError } from 'axios';
+
 /**
  * Centralized API Client for ReachInbox Scheduler
  * All backend API calls go through this client. No hardcoded endpoints in TSX components.
@@ -94,32 +96,48 @@ function notifyUnauthorized(): void {
   });
 }
 
-async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const res = await fetch(path, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-    credentials: 'include', // Ensure reachinbox_session cookie is sent
-  });
+/**
+ * Pre-configured Axios instance
+ * Enforces withCredentials: true for reachinbox_session HTTP-only cookie
+ */
+export const axiosInstance: AxiosInstance = axios.create({
+  baseURL: '',
+  withCredentials: true,
+  timeout: 30000,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
 
-  if (!res.ok) {
-    if (res.status === 401) {
+// Response interceptor: global 401 Unauthorized detection and normalized error extraction
+axiosInstance.interceptors.response.use(
+  (response) => response,
+  (error: AxiosError<any>) => {
+    if (error.response?.status === 401) {
       notifyUnauthorized();
     }
-    let errMsg = `Request failed with status ${res.status}`;
-    try {
-      const errorJson = await res.json();
-      errMsg = errorJson?.error?.message || errorJson?.message || errMsg;
-    } catch {
-      // fallback
-    }
-    throw new Error(errMsg);
+    const errMsg =
+      error.response?.data?.error?.message ||
+      error.response?.data?.message ||
+      error.message ||
+      'An unexpected error occurred';
+    return Promise.reject(new Error(errMsg));
   }
+);
 
-  const json = await res.json();
-  return json.data ?? json;
+async function request<T>(
+  url: string,
+  options: { method?: string; data?: any; params?: any; headers?: any } = {}
+): Promise<T> {
+  const res = await axiosInstance.request<any>({
+    url,
+    method: options.method || 'GET',
+    data: options.data,
+    params: options.params,
+    headers: options.headers,
+  });
+
+  return res.data?.data !== undefined ? res.data.data : res.data;
 }
 
 export const apiClient = {
@@ -127,8 +145,7 @@ export const apiClient = {
     onUnauthorized,
     async getCurrentUser(): Promise<{ id: string; email: string; name: string } | null> {
       try {
-        const res = await request<{ id: string; email: string; name: string }>('/auth/me');
-        return res;
+        return await request<{ id: string; email: string; name: string }>('/auth/me');
       } catch {
         return null;
       }
@@ -137,7 +154,7 @@ export const apiClient = {
     async loginDemo(email = 'alex.founder@reachinbox.ai', name = 'Oliver Brown'): Promise<void> {
       await request('/auth/demo-login', {
         method: 'POST',
-        body: JSON.stringify({ email, name }),
+        data: { email, name },
       });
     },
 
@@ -154,18 +171,18 @@ export const apiClient = {
 
   emails: {
     async getScheduled(page = 1, limit = 50): Promise<{ items: EmailRecord[]; total: number }> {
-      const res = await request<{ items?: EmailRecord[]; data?: EmailRecord[]; meta?: { total: number }; total?: number }>(
-        `/api/v1/emails/scheduled?page=${page}&limit=${limit}`
-      );
+      const res = await request<any>('/api/v1/emails/scheduled', {
+        params: { page, limit },
+      });
       const items = (Array.isArray(res) ? res : res.items || res.data || []) as EmailRecord[];
       const total = res.meta?.total ?? res.total ?? items.length;
       return { items, total };
     },
 
     async getSent(page = 1, limit = 50): Promise<{ items: EmailRecord[]; total: number }> {
-      const res = await request<{ items?: EmailRecord[]; data?: EmailRecord[]; meta?: { total: number }; total?: number }>(
-        `/api/v1/emails/sent?page=${page}&limit=${limit}`
-      );
+      const res = await request<any>('/api/v1/emails/sent', {
+        params: { page, limit },
+      });
       const items = (Array.isArray(res) ? res : res.items || res.data || []) as EmailRecord[];
       const total = res.meta?.total ?? res.total ?? items.length;
       return { items, total };
@@ -175,7 +192,7 @@ export const apiClient = {
       const leads = payload.recipients.map((email) => ({ email }));
       return request<{ scheduledCount: number; emails: EmailRecord[] }>('/api/v1/emails/batch', {
         method: 'POST',
-        body: JSON.stringify({
+        data: {
           senderId: payload.senderId,
           leads,
           subject: payload.subject,
@@ -183,7 +200,7 @@ export const apiClient = {
           startTime: payload.scheduledAt,
           delayBetweenEmailsSeconds: payload.delaySecondsBetweenSends || 2,
           hourlyLimit: payload.hourlyLimit || 200,
-        }),
+        },
       });
     },
 
@@ -202,9 +219,9 @@ export const apiClient = {
 
   search: {
     async searchEmails(query: string): Promise<{ items: EmailRecord[]; total: number }> {
-      const res = await request<{ items?: EmailRecord[]; data?: EmailRecord[]; meta?: { total: number }; total?: number }>(
-        `/api/v1/search?q=${encodeURIComponent(query)}`
-      );
+      const res = await request<any>('/api/v1/search', {
+        params: { q: query },
+      });
       const items = (Array.isArray(res) ? res : res.items || res.data || []) as EmailRecord[];
       const total = res.meta?.total ?? res.total ?? items.length;
       return { items, total };

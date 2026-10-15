@@ -1,3 +1,4 @@
+import axios from 'axios';
 import { SlackIntegrationRepository } from '@reachinbox/database';
 import { getSharedRedis } from '@reachinbox/queue';
 
@@ -44,25 +45,29 @@ export class SlackAlertProvider implements AlertProvider {
     const messageText = `🚨 *ReachInbox Rate Limit Alert*\n• *Sender:* ${payload.senderEmail}\n• *Quota:* Reached ${payload.hourlyLimit} emails/hour\n• *Status:* Subsequent emails deferred to ${payload.nextWindowDate.toUTCString()}\n• *Note:* Zero jobs dropped. Resilience guaranteed.`;
 
     if (integration.webhookUrl) {
-      await fetch(integration.webhookUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: messageText }),
-        signal: AbortSignal.timeout(5000),
-      });
+      await axios.post(
+        integration.webhookUrl,
+        { text: messageText },
+        {
+          headers: { 'Content-Type': 'application/json' },
+          timeout: 5000,
+        }
+      );
     } else if (integration.accessToken && integration.channelId) {
-      await fetch('https://slack.com/api/chat.postMessage', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${integration.accessToken}`,
-        },
-        body: JSON.stringify({
+      await axios.post(
+        'https://slack.com/api/chat.postMessage',
+        {
           channel: integration.channelId,
           text: messageText,
-        }),
-        signal: AbortSignal.timeout(5000),
-      });
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${integration.accessToken}`,
+          },
+          timeout: 5000,
+        }
+      );
     }
     console.log(`[SlackAlertProvider] Successfully dispatched Slack alert for sender ${payload.senderEmail}`);
   }
@@ -93,18 +98,20 @@ export class WebhookAlertProvider implements AlertProvider {
     const url = this.webhookUrl || process.env.GENERIC_ALERT_WEBHOOK_URL;
     if (!url) return;
 
-    await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+    await axios.post(
+      url,
+      {
         event: 'rate_limit_exceeded',
         sender: payload.senderEmail,
         quota: payload.hourlyLimit,
         resumedAt: payload.nextWindowDate.toISOString(),
         timestamp: new Date().toISOString(),
-      }),
-      signal: AbortSignal.timeout(5000),
-    });
+      },
+      {
+        headers: { 'Content-Type': 'application/json' },
+        timeout: 5000,
+      }
+    );
     console.log(`[WebhookAlertProvider] Dispatched alert to ${url}`);
   }
 }

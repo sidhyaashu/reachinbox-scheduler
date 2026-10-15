@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import axios from 'axios';
 import { UserRepository, SessionRepository, SenderRepository } from '@reachinbox/database';
 import { User, UnauthorizedError } from '@reachinbox/shared';
 import { config } from '../config.js';
@@ -25,41 +26,48 @@ export class AuthService {
   }
 
   async handleGoogleCallback(code: string): Promise<{ token: string; user: User }> {
-    // 1. Exchange authorization code for tokens
-    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        code,
-        client_id: config.GOOGLE_CLIENT_ID,
-        client_secret: config.GOOGLE_CLIENT_SECRET,
-        redirect_uri: config.GOOGLE_CALLBACK_URL,
-        grant_type: 'authorization_code',
-      }),
-    });
-
-    if (!tokenResponse.ok) {
-      const errBody = await tokenResponse.text();
+    // 1. Exchange authorization code for tokens via Axios
+    let tokenData: { access_token: string };
+    try {
+      const tokenResponse = await axios.post<{ access_token: string }>(
+        'https://oauth2.googleapis.com/token',
+        new URLSearchParams({
+          code,
+          client_id: config.GOOGLE_CLIENT_ID,
+          client_secret: config.GOOGLE_CLIENT_SECRET,
+          redirect_uri: config.GOOGLE_CALLBACK_URL,
+          grant_type: 'authorization_code',
+        }).toString(),
+        {
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        }
+      );
+      tokenData = tokenResponse.data;
+    } catch (err: any) {
+      const errBody = err.response?.data ? JSON.stringify(err.response.data) : err.message;
       throw new UnauthorizedError(`Failed to exchange Google OAuth code: ${errBody}`);
     }
 
-    const tokenData = (await tokenResponse.json()) as { access_token: string };
-
-    // 2. Fetch Google profile info
-    const profileResponse = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-      headers: { Authorization: `Bearer ${tokenData.access_token}` },
-    });
-
-    if (!profileResponse.ok) {
-      throw new UnauthorizedError('Failed to fetch user profile from Google');
-    }
-
-    const profile = (await profileResponse.json()) as {
+    // 2. Fetch Google profile info via Axios
+    let profile: {
       sub: string;
       email: string;
       name: string;
       picture?: string;
     };
+    try {
+      const profileResponse = await axios.get<{
+        sub: string;
+        email: string;
+        name: string;
+        picture?: string;
+      }>('https://www.googleapis.com/oauth2/v3/userinfo', {
+        headers: { Authorization: `Bearer ${tokenData.access_token}` },
+      });
+      profile = profileResponse.data;
+    } catch {
+      throw new UnauthorizedError('Failed to fetch user profile from Google');
+    }
 
     // 3. Upsert user in PostgreSQL
     const user = await this.userRepo.upsertGoogleUser(

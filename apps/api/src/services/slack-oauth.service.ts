@@ -1,3 +1,4 @@
+import axios from 'axios';
 import { SlackIntegrationRepository } from '@reachinbox/database';
 import { SlackIntegration, NotFoundError, AppError } from '@reachinbox/shared';
 import { config } from '../config.js';
@@ -19,18 +20,25 @@ export class SlackOAuthService {
   }
 
   async handleSlackCallback(code: string, userId: string): Promise<SlackIntegration> {
-    const response = await fetch('https://slack.com/api/oauth.v2.access', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        client_id: config.SLACK_CLIENT_ID,
-        client_secret: config.SLACK_CLIENT_SECRET,
-        code,
-        redirect_uri: config.SLACK_REDIRECT_URI,
-      }),
-    });
+    let data: any;
+    try {
+      const response = await axios.post<any>(
+        'https://slack.com/api/oauth.v2.access',
+        new URLSearchParams({
+          client_id: config.SLACK_CLIENT_ID,
+          client_secret: config.SLACK_CLIENT_SECRET,
+          code,
+          redirect_uri: config.SLACK_REDIRECT_URI,
+        }).toString(),
+        {
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        }
+      );
+      data = response.data;
+    } catch (err: any) {
+      throw new AppError(`Slack OAuth exchange failed: ${err.message}`, 400, 'SLACK_OAUTH_FAILED');
+    }
 
-    const data = (await response.json()) as any;
     if (!data.ok) {
       throw new AppError(`Slack OAuth exchange failed: ${data.error || 'Unknown error'}`, 400, 'SLACK_OAUTH_FAILED');
     }
@@ -88,29 +96,36 @@ export class SlackOAuthService {
     const testText = '👋 *ReachInbox Integration Verified!*\nYour Slack workspace is successfully connected to receive instant rate-limit alerts.';
 
     if (integration.webhookUrl) {
-      const res = await fetch(integration.webhookUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: testText }),
-      });
-      if (!res.ok) {
+      try {
+        await axios.post(
+          integration.webhookUrl,
+          { text: testText },
+          { headers: { 'Content-Type': 'application/json' } }
+        );
+      } catch {
         throw new AppError('Failed to send test message via Slack webhook', 502, 'SLACK_WEBHOOK_ERROR');
       }
     } else if (integration.accessToken && integration.channelId) {
-      const res = await fetch('https://slack.com/api/chat.postMessage', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${integration.accessToken}`,
-        },
-        body: JSON.stringify({
-          channel: integration.channelId,
-          text: testText,
-        }),
-      });
-      const data = (await res.json()) as any;
-      if (!data.ok) {
-        throw new AppError(`Failed to send test message to Slack channel: ${data.error}`, 502, 'SLACK_API_ERROR');
+      try {
+        const res = await axios.post<any>(
+          'https://slack.com/api/chat.postMessage',
+          {
+            channel: integration.channelId,
+            text: testText,
+          },
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${integration.accessToken}`,
+            },
+          }
+        );
+        if (!res.data?.ok) {
+          throw new AppError(`Failed to send test message to Slack channel: ${res.data?.error}`, 502, 'SLACK_API_ERROR');
+        }
+      } catch (err: any) {
+        if (err instanceof AppError) throw err;
+        throw new AppError(`Failed to send test message to Slack channel: ${err.message}`, 502, 'SLACK_API_ERROR');
       }
     }
   }
