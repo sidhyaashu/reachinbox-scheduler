@@ -122,7 +122,11 @@ export const useSchedulerStore = create<SchedulerState>((set, get) => ({
   errorMessage: null,
 
   loadDashboard: async () => {
-    set({ isLoading: true, errorMessage: null });
+    if (!get().user) {
+      set({ isLoading: true, errorMessage: null });
+    } else {
+      set({ isRefreshing: true, errorMessage: null });
+    }
     try {
       // Load summary and email records in parallel
       const [summary, scheduledRes, sentRes] = await Promise.all([
@@ -171,10 +175,6 @@ export const useSchedulerStore = create<SchedulerState>((set, get) => ({
   },
 
   setActiveTab: (tab: 'scheduled' | 'sent' | 'archive' | 'drafts') => {
-    if (tab === 'drafts') {
-      set({ composeOpen: true, detailOpen: false, mobileSidebarOpen: false });
-      return;
-    }
     set({ activeTab: tab, selectedEmail: null, detailOpen: false, composeOpen: false, mobileSidebarOpen: false });
   },
 

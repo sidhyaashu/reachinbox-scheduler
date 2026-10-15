@@ -120,6 +120,48 @@ function DashboardContent() {
     setFilterStatus,
   ]);
 
+  // 4. Handle browser Back/Forward buttons via popstate without triggering Next.js full-page reloads
+  useEffect(() => {
+    const handlePopState = () => {
+      const params = new URLSearchParams(window.location.search);
+      const tab = params.get('tab') as any;
+      if (tab && ['scheduled', 'sent', 'archive', 'drafts'].includes(tab)) {
+        setActiveTab(tab);
+      }
+      if (params.get('compose') === 'true') {
+        openCompose();
+      } else {
+        closeCompose();
+      }
+      const emailId = params.get('emailId');
+      if (emailId) {
+        const allEmails = [...scheduledEmails, ...sentEmails];
+        const match = allEmails.find((e) => e.id === emailId);
+        if (match) selectEmail(match);
+      } else {
+        closeDetail();
+      }
+      const status = params.get('status') as any;
+      if (status && ['ALL', 'SCHEDULED', 'PROCESSING', 'SENT', 'FAILED'].includes(status)) {
+        setFilterStatus(status);
+      } else {
+        setFilterStatus('ALL');
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [
+    scheduledEmails,
+    sentEmails,
+    setActiveTab,
+    openCompose,
+    closeCompose,
+    selectEmail,
+    closeDetail,
+    setFilterStatus,
+  ]);
+
   // Debounced search
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -142,7 +184,7 @@ function DashboardContent() {
 
   const handleFilterChange = (status: 'ALL' | 'SCHEDULED' | 'PROCESSING' | 'SENT' | 'FAILED') => {
     setFilterStatus(status);
-    const params = new URLSearchParams(searchParams.toString());
+    const params = new URLSearchParams(window.location.search);
     if (status === 'ALL') {
       params.delete('status');
     } else {
@@ -156,7 +198,7 @@ function DashboardContent() {
       setActiveTab('scheduled');
       params.set('tab', 'scheduled');
     }
-    router.push(`/dashboard?${params.toString()}`);
+    window.history.pushState(null, '', `/dashboard?${params.toString()}`);
   };
 
   // Full loading screen before auth or dashboard initial data is confirmed

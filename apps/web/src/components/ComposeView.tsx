@@ -123,7 +123,7 @@ export function ComposeView() {
       scheduledAt,
     });
     closeCompose();
-    router.push(`/dashboard?tab=${activeTab}`);
+    window.history.pushState(null, '', `/dashboard?tab=${activeTab}`);
   };
 
   // Keyboard shortcut: Escape to close Send Later popover or return to email list
@@ -293,7 +293,7 @@ export function ComposeView() {
       success('Outreach Scheduled', `Successfully queued ${res.scheduledCount} emails into BullMQ!`);
       clearComposeDraft();
       closeCompose();
-      router.push('/dashboard?tab=scheduled');
+      window.history.pushState(null, '', '/dashboard?tab=scheduled');
     } catch (err: any) {
       error('Scheduling Error', err.message);
     } finally {
@@ -350,7 +350,7 @@ export function ComposeView() {
                 if (editorRef.current) editorRef.current.innerHTML = '';
                 success('Draft Cleared', 'Draft has been discarded');
                 closeCompose();
-                router.push(`/dashboard?tab=${activeTab}`);
+                window.history.pushState(null, '', `/dashboard?tab=${activeTab}`);
               }}
               className="text-xs font-semibold text-slate-400 hover:text-red-500 transition-colors px-2.5 py-1 rounded-lg hover:bg-red-50 cursor-pointer"
               title="Discard draft"

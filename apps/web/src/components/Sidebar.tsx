@@ -95,8 +95,9 @@ export function Sidebar() {
         <Button
           onClick={() => {
             openCompose();
+            closeDetail();
             setMobileSidebarOpen(false);
-            router.push(`/dashboard?tab=${activeTab}&compose=true`);
+            window.history.pushState(null, '', `/dashboard?tab=${activeTab}&compose=true`);
           }}
           className="w-full h-10 rounded-full border-2 border-[#00a84e] bg-white text-[#00a84e] hover:bg-[#e8f5e9] font-semibold text-sm transition-all shadow-none cursor-pointer"
         >
@@ -114,8 +115,10 @@ export function Sidebar() {
             type="button"
             onClick={() => {
               setActiveTab('scheduled');
+              closeCompose();
+              closeDetail();
               setMobileSidebarOpen(false);
-              router.push('/dashboard?tab=scheduled');
+              window.history.pushState(null, '', '/dashboard?tab=scheduled');
             }}
             className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm transition-all cursor-pointer ${
               activeTab === 'scheduled'
@@ -141,8 +144,10 @@ export function Sidebar() {
             type="button"
             onClick={() => {
               setActiveTab('sent');
+              closeCompose();
+              closeDetail();
               setMobileSidebarOpen(false);
-              router.push('/dashboard?tab=sent');
+              window.history.pushState(null, '', '/dashboard?tab=sent');
             }}
             className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm transition-all cursor-pointer ${
               activeTab === 'sent'
@@ -171,7 +176,7 @@ export function Sidebar() {
               closeCompose();
               closeDetail();
               setMobileSidebarOpen(false);
-              router.push('/dashboard?tab=drafts');
+              window.history.pushState(null, '', '/dashboard?tab=drafts');
             }}
             className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm transition-all cursor-pointer ${
               activeTab === 'drafts'
@@ -199,8 +204,10 @@ export function Sidebar() {
             type="button"
             onClick={() => {
               setActiveTab('archive');
+              closeCompose();
+              closeDetail();
               setMobileSidebarOpen(false);
-              router.push('/dashboard?tab=archive');
+              window.history.pushState(null, '', '/dashboard?tab=archive');
             }}
             className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm transition-all cursor-pointer ${
               activeTab === 'archive'

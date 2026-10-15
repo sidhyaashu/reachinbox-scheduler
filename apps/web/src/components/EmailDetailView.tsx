@@ -52,7 +52,7 @@ export function EmailDetailView() {
 
   const handleBack = () => {
     closeDetail();
-    router.push(`/dashboard?tab=${activeTab}`);
+    window.history.pushState(null, '', `/dashboard?tab=${activeTab}`);
   };
 
   // Keyboard shortcut: Escape to go back

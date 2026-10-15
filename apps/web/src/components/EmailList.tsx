@@ -207,7 +207,7 @@ export function EmailList() {
               type="button"
               onClick={() => {
                 setFilterStatus('ALL');
-                router.push(`/dashboard?tab=${activeTab}`);
+                window.history.pushState(null, '', `/dashboard?tab=${activeTab}`);
               }}
               className="text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 px-4 py-2 rounded-full transition-colors cursor-pointer"
             >
@@ -219,7 +219,7 @@ export function EmailList() {
             type="button"
             onClick={() => {
               openCompose();
-              router.push(`/dashboard?tab=${activeTab}&compose=true`);
+              window.history.pushState(null, '', `/dashboard?tab=${activeTab}&compose=true`);
             }}
             className="text-xs font-semibold text-[#00a84e] bg-[#e8f5e9] hover:bg-[#d4edda] px-4 py-2 rounded-full transition-colors cursor-pointer"
           >
@@ -296,10 +296,10 @@ export function EmailList() {
             onClick={() => {
               if (activeTab === 'drafts' || email.id === 'draft-current') {
                 openCompose();
-                router.push('/dashboard?tab=drafts&compose=true');
+                window.history.pushState(null, '', '/dashboard?tab=drafts&compose=true');
               } else {
                 selectEmail(email);
-                router.push(`/dashboard?tab=${activeTab}&emailId=${email.id}`);
+                window.history.pushState(null, '', `/dashboard?tab=${activeTab}&emailId=${email.id}`);
               }
             }}
             className="group flex flex-col sm:flex-row sm:items-center justify-between py-3 2xs:py-3.5 px-2.5 2xs:px-3 hover:bg-slate-50/80 cursor-pointer transition-colors text-sm gap-2 sm:gap-4"
