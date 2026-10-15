@@ -500,7 +500,13 @@ export function ComposeView() {
                 onKeyDown={handleAddRecipient}
                 onBlur={handleBlurRecipient}
                 placeholder={recipients.length === 0 ? 'Enter email (e.g. lead@example.com)' : 'Add more...'}
-                className="text-xs bg-transparent border-none text-slate-800 placeholder:text-slate-400 focus:outline-none flex-1 min-w-[160px] py-1 cursor-text"
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck={false}
+                data-lpignore="true"
+                data-form-type="other"
+                className="text-xs bg-transparent border-none text-slate-800 placeholder:text-slate-400 outline-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 shadow-none flex-1 min-w-[160px] py-1 cursor-text selection:bg-[#e8f5e9] selection:text-[#00873d]"
               />
             </div>
           </div>
@@ -535,7 +541,9 @@ export function ComposeView() {
             value={subject}
             onChange={(e) => setSubject(e.target.value)}
             placeholder="Subject"
-            className="flex-1 text-xs bg-transparent border-none text-slate-800 placeholder:text-slate-400 focus:outline-none py-1 cursor-text"
+            autoComplete="off"
+            spellCheck={false}
+            className="flex-1 text-xs bg-transparent border-none text-slate-800 placeholder:text-slate-400 outline-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 shadow-none py-1 cursor-text selection:bg-[#e8f5e9] selection:text-[#00873d]"
           />
         </div>
 
@@ -667,7 +675,8 @@ export function ComposeView() {
             onChange={(e) => setBody(e.target.value)}
             placeholder="Type your message here... Use {{name}} to personalize per lead."
             rows={9}
-            className="w-full bg-transparent border-none text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none resize-none leading-relaxed cursor-text"
+            spellCheck={false}
+            className="w-full bg-transparent border-none text-xs text-slate-800 placeholder:text-slate-400 outline-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 shadow-none resize-none leading-relaxed cursor-text selection:bg-[#e8f5e9] selection:text-[#00873d]"
           />
         </div>
 
