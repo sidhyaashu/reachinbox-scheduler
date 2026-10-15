@@ -1,0 +1,64 @@
+{
+    email ashutoshsidhya69@gmail.com
+}
+
+# Production domain with Automatic Free HTTPS (Let's Encrypt / ZeroSSL)
+reachinbox.ovanthra.com {
+    handle /health/* {
+        reverse_proxy gateway:4000
+    }
+    handle /api/* {
+        reverse_proxy gateway:4000
+    }
+    handle /auth/* {
+        reverse_proxy gateway:4000
+    }
+    handle /integrations/* {
+        reverse_proxy gateway:4000
+    }
+    handle /admin/* {
+        reverse_proxy gateway:4000
+    }
+
+    # Next.js Web Frontend
+    handle {
+        reverse_proxy web:3000
+    }
+
+    encode zstd gzip
+
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "strict-origin-when-cross-origin"
+    }
+
+    log {
+        output stdout
+        format console
+    }
+}
+
+# Fallback for direct IP or local testing over HTTP
+:80 {
+    handle /health/* {
+        reverse_proxy gateway:4000
+    }
+    handle /api/* {
+        reverse_proxy gateway:4000
+    }
+    handle /auth/* {
+        reverse_proxy gateway:4000
+    }
+    handle /integrations/* {
+        reverse_proxy gateway:4000
+    }
+    handle /admin/* {
+        reverse_proxy gateway:4000
+    }
+
+    handle {
+        reverse_proxy web:3000
+    }
+}

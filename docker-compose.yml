@@ -96,6 +96,13 @@ services:
       PGUSER: reachinbox_user
       PGPASSWORD: reachinbox_password
       PGDATABASE: reachinbox_db
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL}
+      SLACK_CLIENT_ID: ${SLACK_CLIENT_ID}
+      SLACK_CLIENT_SECRET: ${SLACK_CLIENT_SECRET}
+      SLACK_REDIRECT_URI: ${SLACK_REDIRECT_URI}
+      SESSION_SECRET: ${SESSION_SECRET}
 
   scheduler:
     build:
@@ -152,6 +159,11 @@ services:
       WORKER_CONCURRENCY: 5
       MIN_INTER_SEND_DELAY_SECONDS: 2
       DEFAULT_HOURLY_LIMIT: 200
+      ETHEREAL_USER: ${ETHEREAL_USER:-}
+      ETHEREAL_PASS: ${ETHEREAL_PASS:-}
+      ETHEREAL_HOST: ${ETHEREAL_HOST:-smtp.ethereal.email}
+      ETHEREAL_PORT: ${ETHEREAL_PORT:-587}
+      ETHEREAL_SECURE: ${ETHEREAL_SECURE:-false}
 
   search:
     build:
@@ -202,6 +214,7 @@ services:
       PGUSER: reachinbox_user
       PGPASSWORD: reachinbox_password
       PGDATABASE: reachinbox_db
+      SESSION_SECRET: ${SESSION_SECRET}
 
   web:
     build:
@@ -219,16 +232,19 @@ services:
       API_GATEWAY_URL: http://gateway:4000
 
   # ==========================================
-  # Edge Reverse Proxy
+  # Edge Reverse Proxy (Automatic TLS / SSL via Caddy)
   # ==========================================
-  nginx:
-    image: nginx:alpine
-    container_name: reachinbox_nginx
+  caddy:
+    image: caddy:2-alpine
+    container_name: reachinbox_caddy
     restart: unless-stopped
     ports:
       - "80:80"
+      - "443:443"
     volumes:
-      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
     depends_on:
       - gateway
       - web
@@ -237,3 +253,5 @@ volumes:
   pgdata:
   redisdata:
   esdata:
+  caddy_data:
+  caddy_config:

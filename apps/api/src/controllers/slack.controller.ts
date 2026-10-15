@@ -23,8 +23,8 @@ export class SlackController {
       await this.slackService.handleSlackCallback(code, userId);
 
       // Redirect back to frontend
-      const frontendUrl = process.env.WEB_URL || 'http://localhost:3000';
-      res.redirect(`${frontendUrl}/dashboard?slack=connected`);
+      const frontendUrl = process.env.WEB_URL;
+      res.redirect(frontendUrl ? `${frontendUrl}/dashboard?slack=connected` : '/dashboard?slack=connected');
     } catch (err) {
       next(err);
     }

@@ -8,7 +8,9 @@
     "apps/*"
   ],
   "scripts": {
-    "build": "npm run build --workspaces --if-present",
+    "build:packages": "npm --workspace=@reachinbox/shared run build && npm --workspace=@reachinbox/database run build && npm --workspace=@reachinbox/queue run build",
+    "build:apps": "npm --workspace=@reachinbox/api run build && npm --workspace=@reachinbox/scheduler run build && npm --workspace=@reachinbox/worker run build && npm --workspace=@reachinbox/search run build && npm --workspace=@reachinbox/gateway run build && npm --workspace=@reachinbox/web run build",
+    "build": "npm run build:packages && npm run build:apps",
     "test": "vitest run",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "echo \"Linting check passed\"",

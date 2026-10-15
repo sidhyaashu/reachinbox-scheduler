@@ -34,3 +34,13 @@
 - **Status**: Approved
 - **Context**: Master brief mandates raw SQL with `pg` connection pool; forbids Prisma/TypeORM.
 - **Decision**: Store plain `.sql` migrations in `packages/database/migrations` (e.g. `001_initial_schema.sql`). Implement a lightweight, transactional migration runner that tracks applied migrations in a `schema_migrations` table.
+
+## ADR-005: Pluggable Alert Architecture (Provider / Plugin Pattern)
+- **Status**: Approved & Implemented
+- **Context**: As notification channels expand (Slack, Discord, Webhooks, PagerDuty, Datadog/CloudWatch Logs), core email worker and scheduler logic must remain decoupled from specific alert targets.
+- **Decision**: Adopt a Strategy/Provider pattern with a central dispatcher:
+  - `AlertProvider`: Standard interface with `readonly name: string` and `notify(payload: AlertPayload): Promise<void>`.
+  - Built-in providers: `SlackAlertProvider` (OAuth/Webhook), `LogAlertProvider` (structured audit log), `WebhookAlertProvider` (generic JSON webhook).
+  - `AlertService`: Registry and dispatcher with Redis atomic deduplication (`rate_limit_alert_sent:{sender_id}:{hour}`) and `Promise.allSettled` fault isolation.
+- **Consequences**: New alert destinations can be added dynamically at runtime (`alertService.registerProvider(...)`) or swapped via environment variables with zero code changes to email processing.
+

@@ -29,8 +29,8 @@ export class AuthController {
       });
 
       // Redirect to frontend dashboard (web app)
-      const frontendUrl = process.env.WEB_URL || 'http://localhost:3000';
-      res.redirect(`${frontendUrl}/dashboard`);
+      const frontendUrl = process.env.WEB_URL;
+      res.redirect(frontendUrl ? `${frontendUrl}/dashboard` : '/dashboard');
     } catch (err) {
       next(err);
     }
@@ -105,8 +105,8 @@ export class AuthController {
         maxAge: 7 * 24 * 60 * 60 * 1000,
       });
 
-      const frontendUrl = process.env.WEB_URL || 'http://localhost:3000';
-      res.redirect(`${frontendUrl}/dashboard`);
+      const frontendUrl = process.env.WEB_URL;
+      res.redirect(frontendUrl ? `${frontendUrl}/dashboard` : '/dashboard');
     } catch (err) {
       next(err);
     }

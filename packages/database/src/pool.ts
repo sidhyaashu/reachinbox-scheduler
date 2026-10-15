@@ -30,7 +30,7 @@ export function createPool(config?: DatabaseConfig): PgPool {
     max: config?.max || (process.env.PGMAX ? parseInt(process.env.PGMAX, 10) : 20),
     idleTimeoutMillis: config?.idleTimeoutMillis || 30000,
     connectionTimeoutMillis: config?.connectionTimeoutMillis || 5000,
-    ssl: config?.ssl ?? (process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false),
+    ssl: config?.ssl ?? (process.env.PGSSL === 'true' ? { rejectUnauthorized: false } : false),
   });
 
   globalPool.on('error', (err: Error) => {
