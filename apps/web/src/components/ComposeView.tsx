@@ -29,6 +29,7 @@ import {
   Info,
   Users,
   Mail,
+  Layers,
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -37,6 +38,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
 import {
@@ -65,8 +67,12 @@ export function ComposeView() {
     setComposeDraft,
     clearComposeDraft,
     activeTab,
+    setActiveTab,
   } = useSchedulerStore();
   const { success, error } = useToast();
+
+  const rawSenderName = sender?.name || user?.name || '';
+  const cleanSenderName = rawSenderName ? rawSenderName.replace(/\s*\((Gmail|ReachInbox Mailbox)\)$/i, '') : '';
 
   const [toInput, setToInput] = useState('');
   const [recipients, setRecipients] = useState<string[]>(() => composeDraft?.recipients || []);
@@ -478,30 +484,101 @@ export function ComposeView() {
           <div className="flex items-center gap-2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#f4f6f8] text-xs font-medium text-slate-800 cursor-pointer hover:bg-slate-100 transition-colors w-fit">
-                  <span>{selectedSenderEmail || 'outreach@reachinbox.ai'}</span>
-                  <ChevronDown className="w-3.5 h-3.5 text-slate-400 cursor-pointer" />
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#f4f6f8] hover:bg-slate-100 border border-transparent hover:border-slate-200 text-xs font-medium text-slate-800 cursor-pointer transition-colors max-w-sm">
+                  {sender?.authType === 'oauth2_google' && (
+                    <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24">
+                      <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.66v3.05h3.9c2.28-2.1 3.645-5.2 3.645-9.15z"/>
+                      <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.9-3.05c-1.08.72-2.45 1.16-4.03 1.16-3.1 0-5.73-2.1-6.67-4.93H1.28v3.15C3.3 21.36 7.35 24 12 24z"/>
+                      <path fill="#FBBC05" d="M5.33 14.28c-.24-.72-.38-1.49-.38-2.28s.14-1.56.38-2.28V6.57H1.28C.46 8.2 0 10.04 0 12s.46 3.8 1.28 5.43l4.05-3.15z"/>
+                      <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.35 0 3.3 2.64 1.28 6.57l4.05 3.15c.94-2.83 3.57-4.97 6.67-4.97z"/>
+                    </svg>
+                  )}
+                  <div className="flex items-center gap-1.5 truncate">
+                    {cleanSenderName ? (
+                      <>
+                        <span className="font-semibold text-slate-900 truncate">{cleanSenderName}</span>
+                        <span className="text-slate-500 font-normal truncate">&lt;{selectedSenderEmail || 'outreach@reachinbox.ai'}&gt;</span>
+                      </>
+                    ) : (
+                      <span className="truncate">{selectedSenderEmail || 'outreach@reachinbox.ai'}</span>
+                    )}
+                  </div>
+                  <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0 ml-0.5 cursor-pointer" />
                 </div>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-64 bg-white border border-slate-100 shadow-xl">
+              <DropdownMenuContent align="start" className="w-72 bg-white border border-slate-100 shadow-xl">
                 {senderOptions.map((opt) => (
                   <DropdownMenuItem
                     key={opt}
                     onClick={() => setSelectedSenderEmail(opt)}
                     className="flex items-center justify-between text-xs cursor-pointer py-2"
                   >
-                    <span className="truncate">{opt}</span>
-                    {selectedSenderEmail === opt && <Check className="w-3.5 h-3.5 text-[#00a84e]" />}
+                    <div className="flex flex-col truncate pr-2">
+                      {cleanSenderName && (opt === selectedSenderEmail || opt === sender?.email) ? (
+                        <>
+                          <span className="font-semibold text-slate-900 truncate">{cleanSenderName}</span>
+                          <span className="text-[11px] text-slate-400 truncate">{opt}</span>
+                        </>
+                      ) : (
+                        <span className="truncate">{opt}</span>
+                      )}
+                    </div>
+                    {selectedSenderEmail === opt && <Check className="w-3.5 h-3.5 text-[#00a84e] shrink-0" />}
                   </DropdownMenuItem>
                 ))}
+                <DropdownMenuSeparator className="my-1 bg-slate-100" />
+                <DropdownMenuItem
+                  onClick={() => {
+                    closeCompose();
+                    setActiveTab('integrations');
+                    window.history.pushState(null, '', '/dashboard?tab=integrations');
+                  }}
+                  className="flex items-center gap-2 text-xs font-medium text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 cursor-pointer py-2"
+                >
+                  <Layers className="w-3.5 h-3.5 text-slate-400" />
+                  <span>Configure SaaS Integrations</span>
+                </DropdownMenuItem>
+                {sender?.authType !== 'oauth2_google' && (
+                  <DropdownMenuItem
+                    onClick={() => {
+                      window.location.href = `/auth/google?returnTo=${encodeURIComponent('/dashboard?compose=true')}`;
+                    }}
+                    className="flex items-center gap-2 text-xs font-semibold text-[#00873d] hover:bg-emerald-50 cursor-pointer py-2"
+                  >
+                    <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24">
+                      <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.66v3.05h3.9c2.28-2.1 3.645-5.2 3.645-9.15z"/>
+                      <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.9-3.05c-1.08.72-2.45 1.16-4.03 1.16-3.1 0-5.73-2.1-6.67-4.93H1.28v3.15C3.3 21.36 7.35 24 12 24z"/>
+                      <path fill="#FBBC05" d="M5.33 14.28c-.24-.72-.38-1.49-.38-2.28s.14-1.56.38-2.28V6.57H1.28C.46 8.2 0 10.04 0 12s.46 3.8 1.28 5.43l4.05-3.15z"/>
+                      <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.35 0 3.3 2.64 1.28 6.57l4.05 3.15c.94-2.83 3.57-4.97 6.67-4.97z"/>
+                    </svg>
+                    <span>+ Connect your Gmail</span>
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {sender?.authType === 'oauth2_google' && (
-              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold bg-emerald-50 text-[#00873d] border border-emerald-200/60 select-none" title="Connected directly via Google Gmail OAuth2 (No password needed)">
+            {sender?.authType === 'oauth2_google' ? (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-[10px] font-semibold bg-emerald-50 text-[#00873d] border border-emerald-200/70 select-none shadow-2xs" title="Connected directly via Google Gmail OAuth2 (No password needed)">
                 <CheckCircle2 className="w-3 h-3 text-[#00a84e]" />
                 Gmail OAuth2
               </span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  window.location.href = `/auth/google?returnTo=${encodeURIComponent('/dashboard?compose=true')}`;
+                }}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-semibold bg-white hover:bg-emerald-50 text-slate-700 hover:text-[#00873d] border border-slate-200 hover:border-emerald-300 transition-all cursor-pointer shadow-xs"
+                title="Connect your Gmail account via Google OAuth2 to send emails directly without passwords"
+              >
+                <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24">
+                  <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.66v3.05h3.9c2.28-2.1 3.645-5.2 3.645-9.15z"/>
+                  <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.9-3.05c-1.08.72-2.45 1.16-4.03 1.16-3.1 0-5.73-2.1-6.67-4.93H1.28v3.15C3.3 21.36 7.35 24 12 24z"/>
+                  <path fill="#FBBC05" d="M5.33 14.28c-.24-.72-.38-1.49-.38-2.28s.14-1.56.38-2.28V6.57H1.28C.46 8.2 0 10.04 0 12s.46 3.8 1.28 5.43l4.05-3.15z"/>
+                  <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.35 0 3.3 2.64 1.28 6.57l4.05 3.15c.94-2.83 3.57-4.97 6.67-4.97z"/>
+                </svg>
+                <span>+ Connect your Gmail</span>
+              </button>
             )}
           </div>
         </div>

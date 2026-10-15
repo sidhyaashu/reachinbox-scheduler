@@ -230,4 +230,37 @@ export class SenderRepository {
     }
     return sender;
   }
+
+  async disconnectGoogleOAuth(userId: string): Promise<Sender | null> {
+    const existing = await this.findDefaultOrFirstByUserId(userId);
+    if (!existing) return null;
+    const sql = `
+      UPDATE senders
+      SET
+        auth_type = 'smtp',
+        google_refresh_token = NULL,
+        google_access_token = NULL,
+        updated_at = NOW()
+      WHERE id = $1
+      RETURNING
+        id,
+        user_id AS "userId",
+        email,
+        name,
+        smtp_host AS "smtpHost",
+        smtp_port AS "smtpPort",
+        smtp_user AS "smtpUser",
+        smtp_pass AS "smtpPass",
+        smtp_secure AS "smtpSecure",
+        hourly_limit AS "hourlyLimit",
+        min_delay_seconds AS "minDelaySeconds",
+        auth_type AS "authType",
+        google_refresh_token AS "googleRefreshToken",
+        google_access_token AS "googleAccessToken",
+        created_at AS "createdAt",
+        updated_at AS "updatedAt";
+    `;
+    const res = await query<Sender>(sql, [existing.id]);
+    return res.rows[0] || null;
+  }
 }

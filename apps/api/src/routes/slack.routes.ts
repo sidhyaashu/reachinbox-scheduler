@@ -13,6 +13,7 @@ export function createSlackRouter(controller: SlackController = new SlackControl
   router.get('/status', authMiddleware, controller.getStatus);
   router.post('/disconnect', authMiddleware, controller.disconnect);
   router.post('/test', authMiddleware, controller.testAlert);
+  router.post('/test-alert', authMiddleware, controller.testAlert);
 
   return router;
 }

@@ -7,6 +7,7 @@ import { Sidebar } from '../../components/Sidebar';
 import { EmailList } from '../../components/EmailList';
 import { ComposeView } from '../../components/ComposeView';
 import { EmailDetailView } from '../../components/EmailDetailView';
+import { IntegrationsView } from '../../components/IntegrationsView';
 import { Search, Filter, RotateCw, Menu, X, Check, Loader2, Mail, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
 import {
   DropdownMenu,
@@ -37,6 +38,7 @@ function DashboardContent() {
     scheduledEmails,
     sentEmails,
     counts,
+    sender,
     activeTab,
     setActiveTab,
     filterStatus,
@@ -106,6 +108,8 @@ function DashboardContent() {
       setActiveTab('archive');
     } else if (urlTab === 'drafts' && activeTab !== 'drafts') {
       setActiveTab('drafts');
+    } else if (urlTab === 'integrations' && activeTab !== 'integrations') {
+      setActiveTab('integrations');
     }
 
     // Sync Compose view
@@ -701,6 +705,34 @@ function DashboardContent() {
                 <span className="font-semibold text-emerald-800">Live</span>
               </div>
 
+              {/* Gmail OAuth2 Status / Connect Button */}
+              {sender?.authType === 'oauth2_google' ? (
+                <div
+                  className="hidden lg:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-[#00873d] border border-emerald-200/70 select-none shrink-0"
+                  title="Your Gmail account is connected via Google OAuth2. Emails are sent directly from your Gmail without passwords."
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5 text-[#00a84e]" />
+                  <span>Gmail Connected</span>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    window.location.href = `/auth/google?returnTo=${encodeURIComponent('/dashboard')}`;
+                  }}
+                  className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-white hover:bg-emerald-50 text-slate-700 hover:text-[#00873d] border border-slate-200 hover:border-emerald-300 transition-all cursor-pointer shadow-xs shrink-0"
+                  title="Connect your Gmail account via Google OAuth2 to send emails directly without passwords"
+                >
+                  <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.66v3.05h3.9c2.28-2.1 3.645-5.2 3.645-9.15z"/>
+                    <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.9-3.05c-1.08.72-2.45 1.16-4.03 1.16-3.1 0-5.73-2.1-6.67-4.93H1.28v3.15C3.3 21.36 7.35 24 12 24z"/>
+                    <path fill="#FBBC05" d="M5.33 14.28c-.24-.72-.38-1.49-.38-2.28s.14-1.56.38-2.28V6.57H1.28C.46 8.2 0 10.04 0 12s.46 3.8 1.28 5.43l4.05-3.15z"/>
+                    <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.35 0 3.3 2.64 1.28 6.57l4.05 3.15c.94-2.83 3.57-4.97 6.67-4.97z"/>
+                  </svg>
+                  <span>Connect your Gmail</span>
+                </button>
+              )}
+
               {/* Refresh icon */}
               <button
                 type="button"
@@ -727,9 +759,9 @@ function DashboardContent() {
               )}
             </div>
 
-            {/* Email Rows List */}
+            {/* Email Rows List or Integrations View */}
             <div className="flex-1 overflow-y-auto px-3 2xs:px-4 xs:px-5 sm:px-6 md:px-8 py-2">
-              <EmailList />
+              {activeTab === 'integrations' ? <IntegrationsView /> : <EmailList />}
             </div>
           </div>
         )}

@@ -16,6 +16,7 @@ export function createAuthRouter(controller: AuthController = new AuthController
   // Authenticated user endpoints
   router.get('/me', authMiddleware, controller.me);
   router.post('/logout', controller.logout);
+  router.post('/google/disconnect', authMiddleware, controller.disconnectGoogle);
 
   return router;
 }

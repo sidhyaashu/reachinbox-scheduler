@@ -61,13 +61,13 @@ export function createApp(): Express {
     })
   );
 
-  // Forward /integrations/slack to Email API Service (:4001)
+  // Forward /integrations to Email API Service (:4001)
   app.use(
-    '/integrations/slack',
+    '/integrations',
     createProxyMiddleware({
       target: config.EMAIL_API_URL,
       changeOrigin: true,
-      pathRewrite: (path) => (path.startsWith('/integrations/slack') ? path : `/integrations/slack${path}`),
+      pathRewrite: (path) => (path.startsWith('/integrations') ? path : `/integrations${path}`),
       on: { proxyReq: fixRequestBody },
     })
   );

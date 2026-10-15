@@ -14,8 +14,9 @@ interface SchedulerState {
   // User & Profile
   user: UserProfile | null;
   sender: DashboardSummary['sender'] | null;
+  slackIntegration: DashboardSummary['slackIntegration'] | null;
   // Navigation & Active View
-  activeTab: 'scheduled' | 'sent' | 'archive' | 'drafts';
+  activeTab: 'scheduled' | 'sent' | 'archive' | 'drafts' | 'integrations';
   mobileSidebarOpen: boolean;
   filterStatus: 'ALL' | 'SCHEDULED' | 'PROCESSING' | 'SENT' | 'FAILED';
   // Email Records
@@ -42,7 +43,7 @@ interface SchedulerState {
 
   // Actions
   loadDashboard: () => Promise<void>;
-  setActiveTab: (tab: 'scheduled' | 'sent' | 'archive' | 'drafts') => void;
+  setActiveTab: (tab: 'scheduled' | 'sent' | 'archive' | 'drafts' | 'integrations') => void;
   setMobileSidebarOpen: (open: boolean) => void;
   setFilterStatus: (status: 'ALL' | 'SCHEDULED' | 'PROCESSING' | 'SENT' | 'FAILED') => void;
   selectEmail: (email: EmailRecord) => void;
@@ -101,6 +102,7 @@ const initialStarred = getInitialStarred();
 export const useSchedulerStore = create<SchedulerState>((set, get) => ({
   user: null,
   sender: null,
+  slackIntegration: null,
   activeTab: 'scheduled',
   mobileSidebarOpen: false,
   filterStatus: 'ALL',
@@ -167,6 +169,7 @@ export const useSchedulerStore = create<SchedulerState>((set, get) => ({
       set({
         user,
         sender: summary?.sender || null,
+        slackIntegration: summary?.slackIntegration || null,
         scheduledEmails: scheduledItems,
         sentEmails: sentItems,
         selectedEmail: updatedSelected,
@@ -184,7 +187,7 @@ export const useSchedulerStore = create<SchedulerState>((set, get) => ({
     }
   },
 
-  setActiveTab: (tab: 'scheduled' | 'sent' | 'archive' | 'drafts') => {
+  setActiveTab: (tab: 'scheduled' | 'sent' | 'archive' | 'drafts' | 'integrations') => {
     set({ activeTab: tab, selectedEmail: null, detailOpen: false, composeOpen: false, mobileSidebarOpen: false });
   },
 

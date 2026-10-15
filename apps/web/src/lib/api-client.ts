@@ -254,5 +254,40 @@ export const apiClient = {
         return { connected: false };
       }
     },
+    async sendTestAlert(): Promise<{ success: boolean; message: string }> {
+      return request<{ success: boolean; message: string }>('/integrations/slack/test-alert', {
+        method: 'POST',
+      });
+    },
+    async disconnect(): Promise<{ disconnected: boolean }> {
+      return request<{ disconnected: boolean }>('/integrations/slack/disconnect', {
+        method: 'POST',
+      });
+    },
+  },
+
+  integrations: {
+    async getSlackStatus(): Promise<SlackStatus> {
+      try {
+        return await request<SlackStatus>('/integrations/slack/status');
+      } catch {
+        return { connected: false };
+      }
+    },
+    async sendSlackTestAlert(): Promise<{ success: boolean; message: string }> {
+      return request<{ success: boolean; message: string }>('/integrations/slack/test-alert', {
+        method: 'POST',
+      });
+    },
+    async disconnectSlack(): Promise<{ disconnected: boolean }> {
+      return request<{ disconnected: boolean }>('/integrations/slack/disconnect', {
+        method: 'POST',
+      });
+    },
+    async disconnectGoogle(): Promise<{ message: string }> {
+      return request<{ message: string }>('/auth/google/disconnect', {
+        method: 'POST',
+      });
+    },
   },
 };

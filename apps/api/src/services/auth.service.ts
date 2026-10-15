@@ -138,4 +138,8 @@ export class AuthService {
       defaultSenderId: sender?.id,
     };
   }
+
+  async disconnectGoogle(userId: string) {
+    return this.senderRepo.disconnectGoogleOAuth(userId);
+  }
 }

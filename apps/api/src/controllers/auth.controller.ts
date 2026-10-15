@@ -29,8 +29,23 @@ export class AuthController {
       });
 
       // Redirect to frontend dashboard (web app)
+      const state = req.query.state as string | undefined;
+      const targetPath = state && state.startsWith('/') ? state : '/dashboard';
       const frontendUrl = process.env.WEB_URL;
-      res.redirect(frontendUrl ? `${frontendUrl}/dashboard` : '/dashboard');
+      res.redirect(frontendUrl ? `${frontendUrl}${targetPath}` : targetPath);
+    } catch (err) {
+      next(err);
+    }
+  };
+
+  disconnectGoogle = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = req.user!.id;
+      await this.authService.disconnectGoogle(userId);
+      res.status(200).json({
+        success: true,
+        data: { message: 'Google account disconnected successfully' },
+      });
     } catch (err) {
       next(err);
     }
