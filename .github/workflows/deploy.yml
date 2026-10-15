@@ -11,6 +11,9 @@ concurrency:
   group: production-deploy
   cancel-in-progress: false
 
+permissions:
+  contents: read
+
 jobs:
   # ==========================================
   # Stage 1: Quality Gate (Lint, Build, Test)
@@ -89,26 +92,20 @@ jobs:
             git -C $APP_DIR reset --hard origin/main
             cd $APP_DIR
 
-            # Inject production environment variables from GitHub Secret if provided
-            if [ -n "${{ secrets.ENV_FILE }}" ]; then
-              echo "Injecting production .env configuration from GitHub Secret..."
-              cat << 'EOF' > .env
-${{ secrets.ENV_FILE }}
-EOF
-            elif [ -f .env ]; then
-              echo "Preserving existing .env configuration on VM."
+            # Ensure production .env exists
+            if [ -f .env ]; then
+              echo "Preserving existing production .env on VM."
             else
-              echo "⚠️ Error: No .env found on VM and secrets.ENV_FILE is not set in GitHub repository secrets!"
-              echo "Please configure ENV_FILE in repository secrets or create /opt/reachinbox/.env"
-              exit 1
+              echo "Creating initial .env from .env.example..."
+              cp .env.example .env
             fi
 
-            # Deploy containers with Docker Compose & Caddy
+            # Deploy containers with Docker Compose
             echo "Building and starting Docker Compose services..."
-            docker compose pull postgres redis elasticsearch caddy || true
+            docker compose pull postgres redis elasticsearch nginx || true
             docker compose up -d --build --remove-orphans
 
-            # Wait for Gateway & Caddy health check
+            # Wait for Gateway & services health check
             echo "Waiting for services to become healthy..."
             sleep 15
             docker compose ps
