@@ -61,8 +61,9 @@ recipient,Skip Header,Test`;
     });
 
     it('returns fallback for null or invalid date', () => {
-      expect(formatFigmaScheduleTime(null)).toBe('Tue 9:15:12 AM');
-      expect(formatFigmaScheduleTime('invalid-date')).toBe('Tue 9:15:12 AM');
+      expect(formatFigmaScheduleTime(null)).toBe('Not scheduled');
+      expect(formatFigmaScheduleTime('invalid-date')).toBe('Not scheduled');
+      expect(formatFigmaScheduleTime(null, 'Asia/Kolkata', '—')).toBe('—');
     });
   });
 

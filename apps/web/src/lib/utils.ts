@@ -28,11 +28,12 @@ export function formatDateTime(
 
 export function formatFigmaScheduleTime(
   dateInput: string | Date | null | undefined,
-  timeZone: string = 'Asia/Kolkata'
+  timeZone: string = 'Asia/Kolkata',
+  fallback: string = 'Not scheduled'
 ): string {
-  if (!dateInput) return 'Tue 9:15:12 AM';
+  if (!dateInput) return fallback;
   const d = new Date(dateInput);
-  if (isNaN(d.getTime())) return 'Tue 9:15:12 AM';
+  if (isNaN(d.getTime())) return fallback;
 
   const weekday = new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone }).format(d);
   const time = new Intl.DateTimeFormat('en-US', {
