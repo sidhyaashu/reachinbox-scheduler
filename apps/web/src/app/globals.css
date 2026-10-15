@@ -92,14 +92,14 @@ input.bg-\[\#f4f6f8\]:-webkit-autofill:active {
   box-shadow: 0 0 0 1000px #f4f6f8 inset !important;
 }
 
-/* Global text selection: clean brand mint green instead of harsh browser blue */
+/* Global text selection: high-contrast brand emerald with crisp white text for perfect visibility in light mode */
 ::selection {
-  background-color: #e8f5e9;
-  color: #00873d;
+  background-color: #00a84e !important;
+  color: #ffffff !important;
 }
 
 ::-moz-selection {
-  background-color: #e8f5e9;
-  color: #00873d;
+  background-color: #00a84e !important;
+  color: #ffffff !important;
 }
 

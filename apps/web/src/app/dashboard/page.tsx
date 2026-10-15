@@ -238,7 +238,7 @@ function DashboardContent() {
                   placeholder="Search emails by recipient or subject..."
                   autoComplete="off"
                   spellCheck={false}
-                  className="w-full h-9 2xs:h-10 pl-9 pr-8 rounded-full bg-[#f4f6f8] text-xs text-slate-800 placeholder:text-slate-400 border-none outline-none focus:outline-none focus:ring-1 focus:ring-[#00a84e] cursor-text selection:bg-[#e8f5e9] selection:text-[#00873d]"
+                  className="w-full h-9 2xs:h-10 pl-9 pr-8 rounded-full bg-[#f4f6f8] text-xs text-slate-800 placeholder:text-slate-400 border-none outline-none focus:outline-none focus:ring-1 focus:ring-[#00a84e] cursor-text selection:bg-[#00a84e] selection:text-white"
                 />
                 {localSearch && (
                   <button

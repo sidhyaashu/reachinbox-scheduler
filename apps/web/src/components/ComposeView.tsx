@@ -544,7 +544,7 @@ export function ComposeView() {
                 spellCheck={false}
                 data-lpignore="true"
                 data-form-type="other"
-                className="text-xs bg-transparent border-none text-slate-800 placeholder:text-slate-400 outline-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 shadow-none flex-1 min-w-[160px] py-1 cursor-text selection:bg-[#e8f5e9] selection:text-[#00873d]"
+                className="text-xs bg-transparent border-none text-slate-800 placeholder:text-slate-400 outline-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 shadow-none flex-1 min-w-[160px] py-1 cursor-text selection:bg-[#00a84e] selection:text-white"
               />
             </div>
           </div>
@@ -601,7 +601,7 @@ export function ComposeView() {
             placeholder="Subject"
             autoComplete="off"
             spellCheck={false}
-            className="flex-1 text-xs bg-transparent border-none text-slate-800 placeholder:text-slate-400 outline-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 shadow-none py-1 cursor-text selection:bg-[#e8f5e9] selection:text-[#00873d]"
+            className="flex-1 text-xs bg-transparent border-none text-slate-800 placeholder:text-slate-400 outline-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 shadow-none py-1 cursor-text selection:bg-[#00a84e] selection:text-white"
           />
         </div>
 
@@ -664,7 +664,7 @@ export function ComposeView() {
         </div>
 
         {/* RICH TEXT EDITOR BOX */}
-        <div className="rounded-2xl bg-[#f8fafc] border border-slate-200/80 p-3 2xs:p-4 space-y-3 mt-1">
+        <div className="rounded-2xl bg-[#f8fafc] border border-slate-200/80 p-3 2xs:p-4 space-y-3 mt-1 focus-within:border-[#00a84e] focus-within:ring-2 focus-within:ring-[#00a84e]/15 transition-all">
           {/* Real Attachment Input (Hidden) */}
           <input
             type="file"
@@ -783,7 +783,7 @@ export function ComposeView() {
             onInput={handleEditorInput}
             spellCheck={false}
             data-placeholder="Type your message here... Use {{name}} to personalize per lead."
-            className="min-h-[180px] sm:min-h-[220px] w-full bg-transparent border-none text-xs sm:text-sm text-slate-800 outline-none focus:outline-none focus:ring-0 leading-relaxed cursor-text selection:bg-[#e8f5e9] selection:text-[#00873d] [&_strong]:font-bold [&_b]:font-bold [&_em]:italic [&_i]:italic [&_u]:underline [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_blockquote]:border-l-2 [&_blockquote]:border-[#00a84e] [&_blockquote]:pl-3 [&_blockquote]:italic [&:empty]:before:content-[attr(data-placeholder)] [&:empty]:before:text-slate-400 [&:empty]:before:pointer-events-none"
+            className="min-h-[180px] sm:min-h-[220px] w-full bg-transparent border-none text-xs sm:text-sm text-slate-800 outline-none focus:outline-none focus:ring-0 leading-relaxed cursor-text selection:bg-[#00a84e] selection:text-white [&_strong]:font-bold [&_b]:font-bold [&_em]:italic [&_i]:italic [&_u]:underline [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_blockquote]:border-l-2 [&_blockquote]:border-[#00a84e] [&_blockquote]:pl-3 [&_blockquote]:italic [&:empty]:before:content-[attr(data-placeholder)] [&:empty]:before:text-slate-400 [&:empty]:before:pointer-events-none"
           />
         </div>
 
