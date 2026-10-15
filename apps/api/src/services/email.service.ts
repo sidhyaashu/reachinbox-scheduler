@@ -82,12 +82,14 @@ export class EmailService {
     userId: string,
     input: BatchScheduleEmailOutput
   ): Promise<{ scheduledCount: number; emails: EmailRecord[] }> {
-    let senderId = input.senderId;
-    let sender = senderId ? await this.senderRepo.findById(senderId) : null;
-    if (!sender) {
+    let resolvedSenderId: string;
+    const sender = input.senderId ? await this.senderRepo.findById(input.senderId) : null;
+    if (sender) {
+      resolvedSenderId = sender.id;
+    } else {
       const defaultSender = await this.senderRepo.findDefaultOrFirstByUserId(userId);
       if (defaultSender) {
-        senderId = defaultSender.id;
+        resolvedSenderId = defaultSender.id;
       } else {
         const created = await this.senderRepo.upsertDefaultSender(
           userId,
@@ -97,7 +99,7 @@ export class EmailService {
             minDelaySeconds: input.delayBetweenEmailsSeconds,
           }
         );
-        senderId = created.id;
+        resolvedSenderId = created.id;
       }
     }
 
@@ -112,7 +114,7 @@ export class EmailService {
 
       return {
         userId,
-        senderId,
+        senderId: resolvedSenderId,
         recipient: lead.email,
         subject: input.subject,
         body: personalizedBody,
