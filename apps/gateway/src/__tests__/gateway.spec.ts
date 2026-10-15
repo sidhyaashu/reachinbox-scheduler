@@ -69,5 +69,19 @@ describe('API Gateway & BFF Service', () => {
       expect(data.slackIntegration.connected).toBe(true);
       expect(data.queueMetrics.delayed).toBe(3);
     });
+
+    it('GET /api/v1/dashboard/summary returns 401 in production when unauthenticated', async () => {
+      const origEnv = process.env.NODE_ENV;
+      try {
+        process.env.NODE_ENV = 'production';
+        const res = await request(app).get('/api/v1/dashboard/summary');
+        expect(res.status).toBe(401);
+        expect(res.body.success).toBe(false);
+        expect(res.body.error.code).toBe('UNAUTHORIZED');
+      } finally {
+        process.env.NODE_ENV = origEnv;
+      }
+    });
   });
 });
+
