@@ -26,6 +26,8 @@ import {
   FileText,
   Check,
   Info,
+  Users,
+  Mail,
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -301,6 +303,10 @@ export function ComposeView() {
 
   const visiblePills = showAllRecipients ? recipients : recipients.slice(0, 3);
   const remainingCount = Math.max(0, recipients.length - 3);
+  const overflowRecipients = recipients.slice(3);
+  const previewRecipients = overflowRecipients.slice(0, 20);
+  const hasMoreThan20 = overflowRecipients.length > 20;
+  const excessCount = overflowRecipients.length - 20;
 
   // Available sender accounts (prioritizes logged-in user & database sender)
   const senderOptions = Array.from(
@@ -513,14 +519,81 @@ export function ComposeView() {
               ))}
 
               {remainingCount > 0 && !showAllRecipients && (
-                <button
-                  type="button"
-                  onClick={() => setShowAllRecipients(true)}
-                  className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-[#e8f5e9] text-[#00873d] border border-[#c8e6c9] hover:bg-[#d5ebd7] cursor-pointer"
-                  title="Click to expand all recipients"
-                >
-                  +{remainingCount}
-                </button>
+                <TooltipProvider delayDuration={150}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        onClick={() => setShowAllRecipients(true)}
+                        className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-[#e8f5e9] text-[#00873d] border border-[#c8e6c9] hover:bg-[#d5ebd7] cursor-pointer transition-all shadow-2xs hover:scale-105 active:scale-95"
+                      >
+                        +{remainingCount}
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent
+                      side="bottom"
+                      align="start"
+                      sideOffset={8}
+                      className="bg-white text-slate-900 border border-slate-200/90 shadow-2xl rounded-2xl p-4 max-w-sm sm:max-w-md w-80 sm:w-96 text-left z-50 pointer-events-auto"
+                    >
+                      {/* Header */}
+                      <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-100">
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-lg bg-[#e8f5e9] flex items-center justify-center text-[#00a84e] shrink-0">
+                            <Users className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                              <span>Additional Recipients</span>
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-[#e8f5e9] text-[#00873d]">
+                                +{remainingCount}
+                              </span>
+                            </div>
+                            <p className="text-[10px] text-slate-400 mt-0.5">
+                              Total {recipients.length} recipients in outreach campaign
+                            </p>
+                          </div>
+                        </div>
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 shrink-0">
+                          {hasMoreThan20 ? `Showing 20 of ${remainingCount}` : `All ${remainingCount} listed`}
+                        </span>
+                      </div>
+
+                      {/* Dynamic Recipient List (up to 20, then ... and +X more) */}
+                      <div className="flex flex-wrap gap-1.5 max-h-56 overflow-y-auto pr-1">
+                        {previewRecipients.map((email, idx) => (
+                          <span
+                            key={idx}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200/80 transition-colors truncate max-w-[220px]"
+                            title={email}
+                          >
+                            <Mail className="w-3 h-3 text-slate-400 shrink-0" />
+                            <span className="truncate">{email}</span>
+                          </span>
+                        ))}
+                        {hasMoreThan20 && (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-[#e8f5e9] text-[#00873d] border border-[#c8e6c9]">
+                            ... and +{excessCount} more
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Footer */}
+                      <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+                        <span>Click badge to expand in editor</span>
+                        <span
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowAllRecipients(true);
+                          }}
+                          className="text-xs font-semibold text-[#00873d] hover:underline cursor-pointer"
+                        >
+                          Expand All &rarr;
+                        </span>
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               )}
 
               {showAllRecipients && recipients.length > 3 && (
