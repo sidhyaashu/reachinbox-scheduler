@@ -103,6 +103,7 @@ services:
       SLACK_CLIENT_SECRET: ${SLACK_CLIENT_SECRET}
       SLACK_REDIRECT_URI: ${SLACK_REDIRECT_URI}
       SESSION_SECRET: ${SESSION_SECRET}
+      WEB_URL: ${WEB_URL:-https://reachinbox.ovanthra.com}
 
   scheduler:
     build:
@@ -215,6 +216,7 @@ services:
       PGPASSWORD: reachinbox_password
       PGDATABASE: reachinbox_db
       SESSION_SECRET: ${SESSION_SECRET}
+      WEB_URL: ${WEB_URL:-https://reachinbox.ovanthra.com}
 
   web:
     build:
