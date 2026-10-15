@@ -5,6 +5,8 @@ import { requestIdMiddleware } from './middleware/request-id.js';
 import { errorHandler } from './middleware/error-handler.js';
 import { createEmailRouter } from './routes/email.routes.js';
 import { createHealthRouter } from './routes/health.routes.js';
+import { createAuthRouter } from './routes/auth.routes.js';
+import { createSlackRouter } from './routes/slack.routes.js';
 import { NotFoundError } from '@reachinbox/shared';
 
 export function createApp(): Express {
@@ -22,6 +24,12 @@ export function createApp(): Express {
 
   // Health checks
   app.use('/health', createHealthRouter());
+
+  // Auth routes
+  app.use('/auth', createAuthRouter());
+
+  // Slack Integration routes
+  app.use('/integrations/slack', createSlackRouter());
 
   // API v1 routes
   app.use('/api/v1/emails', createEmailRouter());
