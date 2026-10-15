@@ -32,7 +32,6 @@ export function SlackModal({ isOpen, onClose, status, onRefresh }: SlackModalPro
   };
 
   const handleDisconnect = async () => {
-    if (!confirm('Are you sure you want to disconnect Slack?')) return;
     setDisconnecting(true);
     setMessage(null);
     try {

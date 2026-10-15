@@ -16,13 +16,11 @@ export function ScheduledTable({ emails, loading, onCancel, onOpenCompose }: Sch
   const [cancellingId, setCancellingId] = useState<string | null>(null);
 
   const handleCancel = async (id: string) => {
-    if (confirm('Are you sure you want to cancel this scheduled email?')) {
-      setCancellingId(id);
-      try {
-        await onCancel(id);
-      } finally {
-        setCancellingId(null);
-      }
+    setCancellingId(id);
+    try {
+      await onCancel(id);
+    } finally {
+      setCancellingId(null);
     }
   };
 

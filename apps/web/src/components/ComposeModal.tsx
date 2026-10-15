@@ -53,18 +53,21 @@ export function ComposeModal({
     setBody((prev) => `${prev} {{${variable}}}`);
   };
 
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMessage(null);
     if (recipients.length === 0) {
-      alert('Please provide at least one valid recipient lead');
+      setErrorMessage('Please provide at least one valid recipient lead');
       return;
     }
     if (!subject.trim()) {
-      alert('Please provide an email subject');
+      setErrorMessage('Please provide an email subject');
       return;
     }
     if (!body.trim()) {
-      alert('Please provide email body content');
+      setErrorMessage('Please provide email body content');
       return;
     }
 
@@ -80,7 +83,7 @@ export function ComposeModal({
       });
       onClose();
     } catch (err: any) {
-      alert(err.message || 'Failed to schedule campaign');
+      setErrorMessage(err.message || 'Failed to schedule campaign');
     } finally {
       setIsSubmitting(false);
     }
@@ -110,6 +113,11 @@ export function ComposeModal({
 
         {/* Scrollable Form Body */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-5">
+          {errorMessage && (
+            <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs">
+              {errorMessage}
+            </div>
+          )}
           {/* Recipient Leads selector */}
           <CsvLeadParser onLeadsChange={setRecipients} />
 
