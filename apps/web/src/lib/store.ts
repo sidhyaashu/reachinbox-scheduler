@@ -155,11 +155,21 @@ export const useSchedulerStore = create<SchedulerState>((set, get) => ({
       const activeScheduled = scheduledItems.filter((e) => !archivedIds.includes(e.id));
       const activeSent = sentItems.filter((e) => !archivedIds.includes(e.id));
 
+      const currentSelected = get().selectedEmail;
+      let updatedSelected = currentSelected;
+      if (currentSelected) {
+        const found = [...scheduledItems, ...sentItems].find((e) => e.id === currentSelected.id);
+        if (found) {
+          updatedSelected = found;
+        }
+      }
+
       set({
         user,
         sender: summary?.sender || null,
         scheduledEmails: scheduledItems,
         sentEmails: sentItems,
+        selectedEmail: updatedSelected,
         counts: {
           scheduled: activeScheduled.length,
           sent: activeSent.length,

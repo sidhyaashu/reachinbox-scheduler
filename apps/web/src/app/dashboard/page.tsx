@@ -45,9 +45,31 @@ function DashboardContent() {
   const [localSearch, setLocalSearch] = useState('');
   const [spinning, setSpinning] = useState(false);
 
-  // 1. Initial dashboard data loading
+  // 1. Initial dashboard data loading & Continuous Real-time Background Sync (Zero refresh required)
   useEffect(() => {
     loadDashboard();
+
+    // Real-time polling every 2.5 seconds when tab is active
+    const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return;
+      loadDashboard();
+    }, 2500);
+
+    // Instant sync on tab focus or visibility resume
+    const handleSyncOnActive = () => {
+      if (typeof document !== 'undefined' && !document.hidden) {
+        loadDashboard();
+      }
+    };
+
+    window.addEventListener('focus', handleSyncOnActive);
+    document.addEventListener('visibilitychange', handleSyncOnActive);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleSyncOnActive);
+      document.removeEventListener('visibilitychange', handleSyncOnActive);
+    };
   }, [loadDashboard]);
 
   // 2. Auth Route Guard: unauthenticated visitors are redirected to Login with returnTo
@@ -348,12 +370,24 @@ function DashboardContent() {
                 </DropdownMenuContent>
               </DropdownMenu>
 
+              {/* Real-time Sync Live Beacon */}
+              <div
+                className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-100 select-none shrink-0"
+                title="Real-time sync active: email deliveries, queue transitions, and counts update live without manual refresh"
+              >
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+                <span className="font-semibold text-emerald-800">Live</span>
+              </div>
+
               {/* Refresh icon */}
               <button
                 type="button"
                 onClick={handleRefresh}
                 className="p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
-                title="Refresh inbox"
+                title="Refresh inbox immediately"
               >
                 <RotateCw className={`w-4 h-4 ${spinning ? 'animate-spin text-[#00a84e]' : ''}`} />
               </button>
