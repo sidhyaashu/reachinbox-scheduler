@@ -16,6 +16,7 @@ import {
   ArchiveRestore,
   Trash2,
   AlertTriangle,
+  FileText,
 } from 'lucide-react';
 import {
   Dialog,
@@ -34,6 +35,8 @@ export function EmailList() {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const {
+    user,
+    sender,
     activeTab,
     scheduledEmails,
     sentEmails,
@@ -48,6 +51,8 @@ export function EmailList() {
     archivedEmailIds,
     unarchiveEmail,
     cancelEmail,
+    composeDraft,
+    clearComposeDraft,
   } = useSchedulerStore();
 
   const handleStarClick = (e: React.MouseEvent, id: string) => {
@@ -64,9 +69,15 @@ export function EmailList() {
     if (!emailToDelete) return;
     setIsDeleting(true);
     try {
-      await cancelEmail(emailToDelete.id);
-      success('Email Deleted', `Email to ${emailToDelete.recipient} was cancelled and removed`);
-      setEmailToDelete(null);
+      if (emailToDelete.id === 'draft-current') {
+        clearComposeDraft();
+        success('Draft Discarded', 'Your saved draft has been removed');
+        setEmailToDelete(null);
+      } else {
+        await cancelEmail(emailToDelete.id);
+        success('Email Deleted', `Email to ${emailToDelete.recipient} was cancelled and removed`);
+        setEmailToDelete(null);
+      }
     } catch (err: any) {
       error('Deletion Failed', err.message || 'Could not delete email');
     } finally {
@@ -92,22 +103,46 @@ export function EmailList() {
     rawList = [...scheduledEmails, ...sentEmails].filter((e) => archivedEmailIds.includes(e.id));
   } else if (activeTab === 'scheduled') {
     rawList = scheduledEmails.filter((e) => !archivedEmailIds.includes(e.id));
+  } else if (activeTab === 'drafts') {
+    if (composeDraft && (composeDraft.recipients?.length > 0 || composeDraft.subject || composeDraft.body)) {
+      rawList = [
+        {
+          id: 'draft-current',
+          userId: user?.id || 'current-user',
+          senderId: sender?.id || 'sender-1',
+          recipient: composeDraft.recipients?.join(', ') || 'Draft (No recipient)',
+          subject: composeDraft.subject || 'Untitled Draft',
+          body: composeDraft.body || 'No message content',
+          status: 'DRAFT',
+          scheduledAt: composeDraft.scheduledAt || new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          attempts: 0,
+        },
+      ];
+    } else {
+      rawList = [];
+    }
   } else {
     rawList = sentEmails.filter((e) => !archivedEmailIds.includes(e.id));
   }
 
-  if (filterStatus === 'SENT') {
-    rawList = sentEmails.filter((e) => !archivedEmailIds.includes(e.id));
-  } else if (filterStatus === 'SCHEDULED' || filterStatus === 'PROCESSING') {
-    rawList = scheduledEmails.filter((e) => !archivedEmailIds.includes(e.id));
-  } else if (filterStatus === 'FAILED') {
-    rawList = [...scheduledEmails, ...sentEmails].filter((e) => !archivedEmailIds.includes(e.id));
+  if (activeTab !== 'drafts') {
+    if (filterStatus === 'SENT') {
+      rawList = sentEmails.filter((e) => !archivedEmailIds.includes(e.id));
+    } else if (filterStatus === 'SCHEDULED' || filterStatus === 'PROCESSING') {
+      rawList = scheduledEmails.filter((e) => !archivedEmailIds.includes(e.id));
+    } else if (filterStatus === 'FAILED') {
+      rawList = [...scheduledEmails, ...sentEmails].filter((e) => !archivedEmailIds.includes(e.id));
+    }
   }
 
   const baseList = searchResults !== null ? searchResults : rawList;
 
   const filteredList =
-    filterStatus === 'ALL'
+    activeTab === 'drafts'
+      ? baseList
+      : filterStatus === 'ALL'
       ? baseList
       : baseList.filter((e) => {
           if (filterStatus === 'SCHEDULED') {
@@ -150,6 +185,8 @@ export function EmailList() {
             ? 'No matching emails found'
             : hasActiveFilter
             ? `No emails found with status "${filterStatus.charAt(0) + filterStatus.slice(1).toLowerCase()}"`
+            : activeTab === 'drafts'
+            ? 'No drafts found'
             : `No ${activeTab === 'scheduled' ? 'scheduled' : 'sent'} emails found`}
         </h3>
         <p className="text-xs text-slate-400 max-w-sm mt-1 mb-5">
@@ -157,6 +194,8 @@ export function EmailList() {
             ? 'Try searching with another keyword or clear the search query.'
             : hasActiveFilter
             ? 'Try selecting "All Statuses" or clear the filter to see all emails.'
+            : activeTab === 'drafts'
+            ? 'Saved outreach campaign drafts will appear here. Click Compose to start and auto-save.'
             : activeTab === 'scheduled'
             ? 'Compose a new outreach email or upload leads to populate the queue.'
             : 'Sent campaign deliveries and live Ethereal preview links will appear here.'}
@@ -227,6 +266,14 @@ export function EmailList() {
               </span>
             );
           }
+          if (email.status === 'DRAFT' || activeTab === 'drafts') {
+            return (
+              <span className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+                <FileText className="w-3.5 h-3.5 text-slate-500" />
+                <span>Draft</span>
+              </span>
+            );
+          }
           if (isScheduled || activeTab === 'scheduled') {
             return (
               <span className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-[#ffedd5] text-[#c2410c] border border-[#fed7aa]">
@@ -247,8 +294,13 @@ export function EmailList() {
           <div
             key={email.id}
             onClick={() => {
-              selectEmail(email);
-              router.push(`/dashboard?tab=${activeTab}&emailId=${email.id}`);
+              if (activeTab === 'drafts' || email.id === 'draft-current') {
+                openCompose();
+                router.push('/dashboard?tab=drafts&compose=true');
+              } else {
+                selectEmail(email);
+                router.push(`/dashboard?tab=${activeTab}&emailId=${email.id}`);
+              }
             }}
             className="group flex flex-col sm:flex-row sm:items-center justify-between py-3 2xs:py-3.5 px-2.5 2xs:px-3 hover:bg-slate-50/80 cursor-pointer transition-colors text-sm gap-2 sm:gap-4"
           >

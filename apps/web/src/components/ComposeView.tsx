@@ -343,6 +343,8 @@ export function ComposeView() {
                 setBody('');
                 if (editorRef.current) editorRef.current.innerHTML = '';
                 success('Draft Cleared', 'Draft has been discarded');
+                closeCompose();
+                router.push(`/dashboard?tab=${activeTab}`);
               }}
               className="text-xs font-semibold text-slate-400 hover:text-red-500 transition-colors px-2.5 py-1 rounded-lg hover:bg-red-50 cursor-pointer"
               title="Discard draft"

@@ -20,7 +20,7 @@ export interface EmailRecord {
   recipient: string;
   subject: string;
   body: string;
-  status: 'SCHEDULED' | 'QUEUED' | 'PROCESSING' | 'SENT' | 'FAILED' | 'DEFERRED' | 'CANCELLED';
+  status: 'SCHEDULED' | 'QUEUED' | 'PROCESSING' | 'SENT' | 'FAILED' | 'DEFERRED' | 'CANCELLED' | 'DRAFT';
   scheduledAt: string;
   sentAt?: string | null;
   etherealMessageUrl?: string | null;

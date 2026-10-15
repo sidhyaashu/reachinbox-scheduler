@@ -25,6 +25,8 @@ export function Sidebar() {
     setActiveTab,
     counts,
     openCompose,
+    closeCompose,
+    closeDetail,
     logout,
     mobileSidebarOpen,
     setMobileSidebarOpen,
@@ -166,8 +168,10 @@ export function Sidebar() {
             type="button"
             onClick={() => {
               setActiveTab('drafts');
+              closeCompose();
+              closeDetail();
               setMobileSidebarOpen(false);
-              router.push('/dashboard?tab=drafts&compose=true');
+              router.push('/dashboard?tab=drafts');
             }}
             className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm transition-all cursor-pointer ${
               activeTab === 'drafts'
