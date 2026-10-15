@@ -51,8 +51,8 @@
 | **Phase 3** | Email API service, idempotency keys, transactional outbox pattern | ✅ **Completed** | `POST /api/v1/emails/schedule`, Outbox events, session auth |
 | **Phase 4** | Redis/BullMQ setup, Scheduler dispatch, recovery & reconciliation | ✅ **Completed** | Event dispatch, recovery loop, zero-cron, 20 Vitest tests |
 | **Phase 5** | Email Worker, Nodemailer (Ethereal), Redis token-bucket rate limiter | ✅ **Completed** | Concurrency, 2s delay, hourly cap, deferred jobs, 25 tests |
-| **Phase 6** | Google OAuth session auth & Slack OAuth rate-limit alert integration | 🔄 **In Progress** | Real OAuth flows, secure cookie session |
-| **Phase 7** | Search service with Elasticsearch, async indexing & reindexing | ⏳ Pending | Tenant-isolated search, index mappings |
+| **Phase 6** | Google OAuth session auth & Slack OAuth rate-limit alert integration | ✅ **Completed** | Real OAuth flows, secure cookie session, 30 Vitest tests |
+| **Phase 7** | Search service with Elasticsearch, async indexing & reindexing | 🔄 **In Progress** | Tenant-isolated search, index mappings |
 | **Phase 8** | API Gateway, BFF aggregation layer, Nginx reverse proxy | ⏳ Pending | Unified entry point, request ID propagation |
 | **Phase 9** | Docker Compose orchestration, persistent volumes, healthchecks | ⏳ Pending | Postgres, Redis, Elasticsearch, apps in Docker |
 | **Phase 10** | Structured logging, OpenTelemetry / Application Insights, metrics | ⏳ Pending | Correlation IDs, Bull-board dashboard |
