@@ -325,15 +325,34 @@ export const useSchedulerStore = create<SchedulerState>((set, get) => ({
 
   cancelEmail: async (emailId: string) => {
     await apiClient.emails.cancel(emailId);
-    set((state) => ({
-      scheduledEmails: state.scheduledEmails.filter((e) => e.id !== emailId),
-      counts: {
-        ...state.counts,
-        scheduled: Math.max(0, state.counts.scheduled - 1),
-      },
-      selectedEmail: null,
-      detailOpen: false,
-    }));
+    set((state) => {
+      const scheduledEmails = state.scheduledEmails.filter((e) => e.id !== emailId);
+      const sentEmails = state.sentEmails.filter((e) => e.id !== emailId);
+      const searchResults = state.searchResults ? state.searchResults.filter((e) => e.id !== emailId) : null;
+      const archivedEmailIds = state.archivedEmailIds.filter((id) => id !== emailId);
+      const starredEmailIds = state.starredEmailIds.filter((id) => id !== emailId);
+
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('reachinbox_archived_emails', JSON.stringify(archivedEmailIds));
+        localStorage.setItem('reachinbox_starred_emails', JSON.stringify(starredEmailIds));
+      }
+
+      return {
+        scheduledEmails,
+        sentEmails,
+        searchResults,
+        archivedEmailIds,
+        starredEmailIds,
+        counts: {
+          ...state.counts,
+          scheduled: scheduledEmails.filter((e) => !archivedEmailIds.includes(e.id)).length,
+          sent: sentEmails.filter((e) => !archivedEmailIds.includes(e.id)).length,
+          archive: archivedEmailIds.length,
+        },
+        selectedEmail: state.selectedEmail?.id === emailId ? null : state.selectedEmail,
+        detailOpen: state.selectedEmail?.id === emailId ? false : state.detailOpen,
+      };
+    });
   },
 
   scheduleCampaign: async (payload: ScheduleBatchPayload) => {

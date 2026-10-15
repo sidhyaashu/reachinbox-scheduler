@@ -14,11 +14,21 @@ import {
   ExternalLink,
   Clock,
   AlertCircle,
+  AlertTriangle,
   Mail,
   UserCheck,
+  RefreshCw,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { formatFigmaScheduleTime, formatDateTime, parseRichEmailContent } from '../lib/utils';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogFooter,
+  DialogTitle,
+  DialogDescription,
+} from './ui/dialog';
 import { useToast } from './Toast';
 
 export function EmailDetailView() {
@@ -37,6 +47,7 @@ export function EmailDetailView() {
     unarchiveEmail,
   } = useSchedulerStore();
   const { success, error, info } = useToast();
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   const handleBack = () => {
@@ -57,18 +68,21 @@ export function EmailDetailView() {
 
   if (!selectedEmail) return null;
 
-  const handleDelete = async () => {
-    if (confirm('Cancel and delete this email from the queue?')) {
-      setDeleting(true);
-      try {
-        await cancelEmail(selectedEmail.id);
-        success('Email Cancelled', 'The scheduled outreach was removed from the queue');
-        handleBack();
-      } catch (err: any) {
-        error('Cancellation failed', err.message);
-      } finally {
-        setDeleting(false);
-      }
+  const handleDelete = () => {
+    setConfirmOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    setDeleting(true);
+    try {
+      await cancelEmail(selectedEmail.id);
+      success('Email Deleted', 'The scheduled outreach was removed from the queue');
+      setConfirmOpen(false);
+      handleBack();
+    } catch (err: any) {
+      error('Deletion failed', err.message);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -277,6 +291,81 @@ export function EmailDetailView() {
           </div>
         </div>
       </div>
+
+      {/* Confirmation Dialog */}
+      <Dialog
+        open={confirmOpen}
+        onOpenChange={(open) => {
+          if (!open && !deleting) {
+            setConfirmOpen(false);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="flex items-center gap-3 mb-1">
+              <div className="w-10 h-10 rounded-full bg-red-50 border border-red-100 flex items-center justify-center text-red-600 shrink-0">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div>
+                <DialogTitle>Cancel & Delete Email</DialogTitle>
+                <p className="text-xs text-slate-400 mt-0.5">This action cannot be undone</p>
+              </div>
+            </div>
+            <DialogDescription className="text-slate-600 pt-2 text-xs sm:text-sm">
+              Are you sure you want to cancel and delete this email to{' '}
+              <strong className="text-slate-900 font-semibold">{selectedEmail.recipient}</strong>?
+              It will be permanently removed from the scheduling queue and database.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 my-1 text-xs space-y-1.5">
+            <div className="flex items-center gap-2 text-slate-600">
+              <span className="font-semibold text-slate-700 w-20 shrink-0">Recipient:</span>
+              <span className="truncate text-slate-900 font-medium">{selectedEmail.recipient}</span>
+            </div>
+            <div className="flex items-center gap-2 text-slate-600">
+              <span className="font-semibold text-slate-700 w-20 shrink-0">Subject:</span>
+              <span className="truncate text-slate-900 font-medium">{selectedEmail.subject || 'Outreach campaign'}</span>
+            </div>
+            <div className="flex items-center gap-2 text-slate-600">
+              <span className="font-semibold text-slate-700 w-20 shrink-0">Status:</span>
+              <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-white border border-slate-200 text-slate-700">
+                {selectedEmail.status}
+              </span>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0 pt-2">
+            <button
+              type="button"
+              disabled={deleting}
+              onClick={() => setConfirmOpen(false)}
+              className="w-full sm:w-auto px-4 py-2 text-xs sm:text-sm font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl transition-colors cursor-pointer disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={deleting}
+              onClick={handleConfirmDelete}
+              className="w-full sm:w-auto px-4 py-2 text-xs sm:text-sm font-semibold text-white bg-red-600 hover:bg-red-700 border border-red-600 rounded-xl transition-colors cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 shadow-sm"
+            >
+              {deleting ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  <span>Deleting...</span>
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-4 h-4" />
+                  <span>Delete Email</span>
+                </>
+              )}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

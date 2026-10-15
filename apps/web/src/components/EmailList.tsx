@@ -6,10 +6,33 @@ import { useSchedulerStore } from '../lib/store';
 import { EmailRecord } from '../lib/api-client';
 import { Skeleton } from './ui/skeleton';
 import { formatFigmaScheduleTime } from '../lib/utils';
-import { Clock, Star, Mail, CheckCircle2, AlertCircle, RefreshCw, ArchiveRestore } from 'lucide-react';
+import {
+  Clock,
+  Star,
+  Mail,
+  CheckCircle2,
+  AlertCircle,
+  RefreshCw,
+  ArchiveRestore,
+  Trash2,
+  AlertTriangle,
+} from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogFooter,
+  DialogTitle,
+  DialogDescription,
+} from './ui/dialog';
+import { useToast } from './Toast';
 
 export function EmailList() {
   const router = useRouter();
+  const { success, error } = useToast();
+  const [emailToDelete, setEmailToDelete] = useState<EmailRecord | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   const {
     activeTab,
     scheduledEmails,
@@ -24,11 +47,31 @@ export function EmailList() {
     toggleStar,
     archivedEmailIds,
     unarchiveEmail,
+    cancelEmail,
   } = useSchedulerStore();
 
   const handleStarClick = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     toggleStar(id);
+  };
+
+  const handleDeleteClick = (e: React.MouseEvent, email: EmailRecord) => {
+    e.stopPropagation();
+    setEmailToDelete(email);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!emailToDelete) return;
+    setIsDeleting(true);
+    try {
+      await cancelEmail(emailToDelete.id);
+      success('Email Deleted', `Email to ${emailToDelete.recipient} was cancelled and removed`);
+      setEmailToDelete(null);
+    } catch (err: any) {
+      error('Deletion Failed', err.message || 'Could not delete email');
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const getRecipientDisplayName = (email: EmailRecord): string => {
@@ -233,13 +276,21 @@ export function EmailList() {
                   type="button"
                   onClick={(e) => handleStarClick(e, email.id)}
                   className="p-1 text-slate-300 hover:text-amber-400 transition-colors cursor-pointer shrink-0"
-                  title="Star email"
+                  title={isStarred ? 'Unstar email' : 'Star email'}
                 >
                   <Star
                     className={`w-3.5 h-3.5 ${
                       isStarred ? 'fill-amber-400 text-amber-400' : 'text-slate-300'
                     }`}
                   />
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => handleDeleteClick(e, email)}
+                  className="p-1 text-slate-300 hover:text-red-500 transition-colors cursor-pointer shrink-0"
+                  title="Delete email"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
                 </button>
               </div>
             </div>
@@ -293,7 +344,7 @@ export function EmailList() {
                 type="button"
                 onClick={(e) => handleStarClick(e, email.id)}
                 className="p-1 text-slate-300 hover:text-amber-400 transition-colors cursor-pointer"
-                title="Star email"
+                title={isStarred ? 'Unstar email' : 'Star email'}
               >
                 <Star
                   className={`w-4 h-4 ${
@@ -301,10 +352,101 @@ export function EmailList() {
                   }`}
                 />
               </button>
+              <button
+                type="button"
+                onClick={(e) => handleDeleteClick(e, email)}
+                className="p-1 text-slate-300 hover:text-red-500 transition-colors cursor-pointer"
+                title="Delete email"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
             </div>
           </div>
         );
       })}
+
+      {/* Shadcn Confirmation Dialog for Deletion */}
+      <Dialog
+        open={!!emailToDelete}
+        onOpenChange={(open) => {
+          if (!open && !isDeleting) {
+            setEmailToDelete(null);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="flex items-center gap-3 mb-1">
+              <div className="w-10 h-10 rounded-full bg-red-50 border border-red-100 flex items-center justify-center text-red-600 shrink-0">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div>
+                <DialogTitle>Cancel & Delete Email</DialogTitle>
+                <p className="text-xs text-slate-400 mt-0.5">This action cannot be undone</p>
+              </div>
+            </div>
+            <DialogDescription className="text-slate-600 pt-2 text-xs sm:text-sm">
+              Are you sure you want to cancel and delete this email to{' '}
+              <strong className="text-slate-900 font-semibold">{emailToDelete?.recipient}</strong>?
+              It will be permanently removed from the scheduling queue and database.
+            </DialogDescription>
+          </DialogHeader>
+
+          {emailToDelete && (
+            <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 my-1 text-xs space-y-1.5">
+              <div className="flex items-center gap-2 text-slate-600">
+                <span className="font-semibold text-slate-700 w-20 shrink-0">Recipient:</span>
+                <span className="truncate text-slate-900 font-medium">{emailToDelete.recipient}</span>
+              </div>
+              <div className="flex items-center gap-2 text-slate-600">
+                <span className="font-semibold text-slate-700 w-20 shrink-0">Subject:</span>
+                <span className="truncate text-slate-900 font-medium">{emailToDelete.subject || 'Outreach campaign'}</span>
+              </div>
+              <div className="flex items-center gap-2 text-slate-600">
+                <span className="font-semibold text-slate-700 w-20 shrink-0">Status:</span>
+                <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-white border border-slate-200 text-slate-700">
+                  {emailToDelete.status}
+                </span>
+              </div>
+              {emailToDelete.scheduledAt && (
+                <div className="flex items-center gap-2 text-slate-600">
+                  <span className="font-semibold text-slate-700 w-20 shrink-0">Scheduled:</span>
+                  <span className="text-slate-700">{formatFigmaScheduleTime(emailToDelete.scheduledAt)}</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter className="gap-2 sm:gap-0 pt-2">
+            <button
+              type="button"
+              disabled={isDeleting}
+              onClick={() => setEmailToDelete(null)}
+              className="w-full sm:w-auto px-4 py-2 text-xs sm:text-sm font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl transition-colors cursor-pointer disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={isDeleting}
+              onClick={handleConfirmDelete}
+              className="w-full sm:w-auto px-4 py-2 text-xs sm:text-sm font-semibold text-white bg-red-600 hover:bg-red-700 border border-red-600 rounded-xl transition-colors cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 shadow-sm"
+            >
+              {isDeleting ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  <span>Deleting...</span>
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-4 h-4" />
+                  <span>Delete Email</span>
+                </>
+              )}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
