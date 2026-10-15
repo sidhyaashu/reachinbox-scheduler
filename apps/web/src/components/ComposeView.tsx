@@ -25,6 +25,7 @@ import {
   X,
   FileText,
   Check,
+  CheckCircle2,
   Info,
   Users,
   Mail,
@@ -467,33 +468,42 @@ export function ComposeView() {
                     <Info className="w-3.5 h-3.5" />
                   </button>
                 </TooltipTrigger>
-                <TooltipContent side="top" className="text-[11px] p-2.5 max-w-[220px]">
+                <TooltipContent side="top" className="text-[11px] p-2.5 max-w-[240px]">
                   <p className="font-semibold text-white mb-0.5">Sender Mailbox</p>
-                  <p>The authenticated account used to dispatch this campaign. Defaults to your signed-in Google account.</p>
+                  <p>{sender?.authType === 'oauth2_google' ? 'Connected directly via Google Gmail OAuth2. Emails are delivered from your personal Gmail without passwords.' : 'The authenticated account used to dispatch this campaign.'}</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
           </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#f4f6f8] text-xs font-medium text-slate-800 cursor-pointer hover:bg-slate-100 transition-colors w-fit">
-                <span>{selectedSenderEmail || 'outreach@reachinbox.ai'}</span>
-                <ChevronDown className="w-3.5 h-3.5 text-slate-400 cursor-pointer" />
-              </div>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-64 bg-white border border-slate-100 shadow-xl">
-              {senderOptions.map((opt) => (
-                <DropdownMenuItem
-                  key={opt}
-                  onClick={() => setSelectedSenderEmail(opt)}
-                  className="flex items-center justify-between text-xs cursor-pointer py-2"
-                >
-                  <span className="truncate">{opt}</span>
-                  {selectedSenderEmail === opt && <Check className="w-3.5 h-3.5 text-[#00a84e]" />}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <div className="flex items-center gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#f4f6f8] text-xs font-medium text-slate-800 cursor-pointer hover:bg-slate-100 transition-colors w-fit">
+                  <span>{selectedSenderEmail || 'outreach@reachinbox.ai'}</span>
+                  <ChevronDown className="w-3.5 h-3.5 text-slate-400 cursor-pointer" />
+                </div>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-64 bg-white border border-slate-100 shadow-xl">
+                {senderOptions.map((opt) => (
+                  <DropdownMenuItem
+                    key={opt}
+                    onClick={() => setSelectedSenderEmail(opt)}
+                    className="flex items-center justify-between text-xs cursor-pointer py-2"
+                  >
+                    <span className="truncate">{opt}</span>
+                    {selectedSenderEmail === opt && <Check className="w-3.5 h-3.5 text-[#00a84e]" />}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {sender?.authType === 'oauth2_google' && (
+              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold bg-emerald-50 text-[#00873d] border border-emerald-200/60 select-none" title="Connected directly via Google Gmail OAuth2 (No password needed)">
+                <CheckCircle2 className="w-3 h-3 text-[#00a84e]" />
+                Gmail OAuth2
+              </span>
+            )}
+          </div>
         </div>
 
         {/* TO Field + Upload List */}

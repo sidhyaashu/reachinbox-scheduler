@@ -13,12 +13,13 @@ describe('Auth & Slack Integration Endpoints', () => {
   });
 
   describe('Google OAuth Endpoints', () => {
-    it('GET /auth/google redirects to Google accounts OAuth URL', async () => {
+    it('GET /auth/google redirects to Google accounts OAuth URL with gmail.send scope', async () => {
       const res = await request(app).get('/auth/google');
       expect(res.status).toBe(302);
       expect(res.headers.location).toContain('https://accounts.google.com/o/oauth2/v2/auth');
       expect(res.headers.location).toContain('client_id=');
       expect(res.headers.location).toContain('response_type=code');
+      expect(decodeURIComponent(res.headers.location)).toContain('https://www.googleapis.com/auth/gmail.send');
     });
 
     it('GET /auth/me returns current authenticated user context', async () => {

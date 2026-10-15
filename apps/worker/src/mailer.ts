@@ -21,6 +21,21 @@ export class MailerService {
    * Resolves or creates a Nodemailer transporter.
    */
   async getTransporter(sender?: Sender | null): Promise<Transporter> {
+    // 1. Check if sender has linked Google OAuth2 credentials for passwordless Gmail sending
+    if (sender && (sender.authType === 'oauth2_google' || sender.googleRefreshToken) && sender.googleRefreshToken) {
+      return nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+          type: 'OAuth2',
+          user: sender.email,
+          clientId: process.env.GOOGLE_CLIENT_ID || 'mock-client-id',
+          clientSecret: process.env.GOOGLE_CLIENT_SECRET || 'mock-client-secret',
+          refreshToken: sender.googleRefreshToken,
+          accessToken: sender.googleAccessToken || undefined,
+        },
+      });
+    }
+
     if (sender && sender.smtpUser && sender.smtpPass) {
       return nodemailer.createTransport({
         host: sender.smtpHost || 'smtp.ethereal.email',

@@ -120,6 +120,9 @@ function LoginContent() {
             </svg>
             <span>Login with Google</span>
           </button>
+          <p className="text-[10px] text-center text-slate-400 mt-1.5 select-none">
+            ⚡ Links your Gmail via OAuth2 for direct passwordless sending
+          </p>
 
           {/* Divider */}
           <div className="w-full flex items-center my-5 2xs:my-6 gap-3">

@@ -16,7 +16,7 @@ export class AuthService {
       client_id: config.GOOGLE_CLIENT_ID,
       redirect_uri: config.GOOGLE_CALLBACK_URL,
       response_type: 'code',
-      scope: 'openid email profile',
+      scope: 'openid email profile https://www.googleapis.com/auth/gmail.send',
       access_type: 'offline',
       prompt: 'consent',
       state: state || crypto.randomBytes(16).toString('hex'),
@@ -27,9 +27,9 @@ export class AuthService {
 
   async handleGoogleCallback(code: string): Promise<{ token: string; user: User }> {
     // 1. Exchange authorization code for tokens via Axios
-    let tokenData: { access_token: string };
+    let tokenData: { access_token: string; refresh_token?: string };
     try {
-      const tokenResponse = await axios.post<{ access_token: string }>(
+      const tokenResponse = await axios.post<{ access_token: string; refresh_token?: string }>(
         'https://oauth2.googleapis.com/token',
         new URLSearchParams({
           code,
@@ -77,17 +77,19 @@ export class AuthService {
       profile.picture
     );
 
-    // 4 & 5. Parallelize default sender provisioning and session creation
+    // 4 & 5. Parallelize Google OAuth sender provisioning and session creation
     const rawToken = crypto.randomBytes(32).toString('hex');
     const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
 
     await Promise.all([
-      this.senderRepo.upsertDefaultSender(user.id, user.email, {
-        name: `${user.name} (ReachInbox Mailbox)`,
-        hourlyLimit: 200,
-        minDelaySeconds: 2,
-      }),
+      this.senderRepo.linkGoogleOAuthSender(
+        user.id,
+        user.email,
+        `${user.name} (Gmail)`,
+        tokenData.refresh_token || null,
+        tokenData.access_token || null
+      ),
       this.sessionRepo.createSession(user.id, tokenHash, expiresAt),
     ]);
 

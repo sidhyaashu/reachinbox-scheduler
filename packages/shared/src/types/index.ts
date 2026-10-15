@@ -43,6 +43,9 @@ export interface Sender {
   smtpSecure: boolean;
   hourlyLimit: number;
   minDelaySeconds: number;
+  authType?: 'smtp' | 'oauth2_google';
+  googleRefreshToken?: string | null;
+  googleAccessToken?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }

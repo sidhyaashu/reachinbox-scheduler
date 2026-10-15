@@ -194,3 +194,42 @@ describe('EmailProcessor', () => {
     expect(mockMailer.sendMail).not.toHaveBeenCalled();
   });
 });
+
+describe('MailerService', () => {
+  it('creates Google OAuth2 transport when sender has googleRefreshToken', async () => {
+    const nodemailer = (await import('nodemailer')).default;
+    const { MailerService } = await import('../mailer.js');
+    const mailer = new MailerService();
+    const createTransportSpy = vi.spyOn(nodemailer, 'createTransport').mockReturnValue({} as any);
+
+    await mailer.getTransporter({
+      id: 'sender-1',
+      userId: 'user-1',
+      email: 'alex@gmail.com',
+      name: 'Alex',
+      smtpHost: 'smtp.gmail.com',
+      smtpPort: 465,
+      smtpUser: '',
+      smtpPass: '',
+      smtpSecure: true,
+      hourlyLimit: 200,
+      minDelaySeconds: 2,
+      authType: 'oauth2_google',
+      googleRefreshToken: 'refresh-token-12345',
+      googleAccessToken: 'access-token-12345',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    expect(createTransportSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        service: 'gmail',
+        auth: expect.objectContaining({
+          type: 'OAuth2',
+          user: 'alex@gmail.com',
+          refreshToken: 'refresh-token-12345',
+        }),
+      })
+    );
+  });
+});

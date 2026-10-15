@@ -38,6 +38,7 @@ export interface DashboardSummary {
     name: string;
     hourlyLimit: number;
     minDelaySeconds: number;
+    authType?: 'smtp' | 'oauth2_google';
   } | null;
   stats: {
     totalScheduled: number;

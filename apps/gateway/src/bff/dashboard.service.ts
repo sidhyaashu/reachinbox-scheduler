@@ -62,6 +62,7 @@ export class DashboardBffService {
             name: sender.name,
             hourlyLimit: sender.hourlyLimit,
             minDelaySeconds: sender.minDelaySeconds,
+            authType: sender.authType || 'smtp',
           }
         : null,
       stats: {
