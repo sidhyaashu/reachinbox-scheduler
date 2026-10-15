@@ -25,6 +25,7 @@ import {
   X,
   FileText,
   Check,
+  Info,
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -35,6 +36,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from './ui/tooltip';
 import { parseLeadsFromTextOrCsv } from '../lib/utils';
 import { useToast } from './Toast';
 
@@ -143,6 +150,14 @@ export function ComposeView() {
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // Strict file extension validation (.csv or .txt)
+    const ext = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
+    if (ext !== '.csv' && ext !== '.txt') {
+      error('Invalid File Type', 'Only .csv and .txt files are supported.');
+      e.target.value = '';
+      return;
+    }
 
     const reader = new FileReader();
     reader.onload = (event) => {
@@ -274,13 +289,13 @@ export function ComposeView() {
   const visiblePills = showAllRecipients ? recipients : recipients.slice(0, 3);
   const remainingCount = Math.max(0, recipients.length - 3);
 
-  // Available sender accounts
+  // Available sender accounts (prioritizes logged-in user & database sender)
   const senderOptions = Array.from(
     new Set([
       selectedSenderEmail,
       sender?.email,
       user?.email,
-      'outreach@reachinbox.ai',
+      !sender?.email && !user?.email ? 'outreach@reachinbox.ai' : null,
     ].filter(Boolean) as string[])
   );
 
@@ -425,9 +440,24 @@ export function ComposeView() {
       <div className="max-w-4xl w-full mx-auto px-3 2xs:px-4 xs:px-6 sm:px-8 py-5 sm:py-6 flex flex-col gap-4">
         {/* FROM Field */}
         <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6 py-1">
-          <span className="text-xs font-semibold text-slate-400 w-12 shrink-0 select-none">
-            From
-          </span>
+          <div className="flex items-center gap-1.5 w-16 shrink-0 select-none">
+            <span className="text-xs font-semibold text-slate-400">
+              From
+            </span>
+            <TooltipProvider>
+              <Tooltip delayDuration={200}>
+                <TooltipTrigger asChild>
+                  <button type="button" className="text-slate-400 hover:text-slate-600 transition-colors cursor-help" aria-label="From details">
+                    <Info className="w-3.5 h-3.5" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="text-[11px] p-2.5 max-w-[220px]">
+                  <p className="font-semibold text-white mb-0.5">Sender Mailbox</p>
+                  <p>The authenticated account used to dispatch this campaign. Defaults to your signed-in Google account.</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#f4f6f8] text-xs font-medium text-slate-800 cursor-pointer hover:bg-slate-100 transition-colors w-fit">
@@ -512,7 +542,7 @@ export function ComposeView() {
           </div>
 
           {/* Upload List Button */}
-          <div className="shrink-0 self-end sm:self-auto">
+          <div className="shrink-0 self-end sm:self-auto flex items-center gap-1.5">
             <input
               type="file"
               ref={fileInputRef}
@@ -528,6 +558,26 @@ export function ComposeView() {
               <Upload className="w-3.5 h-3.5" />
               <span>+ Upload List (CSV)</span>
             </button>
+            <TooltipProvider>
+              <Tooltip delayDuration={200}>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    className="p-1 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-help"
+                    aria-label="Upload constraints and matching rules"
+                  >
+                    <Info className="w-3.5 h-3.5" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="text-[11px] p-3 max-w-[270px] space-y-1.5 shadow-xl">
+                  <p className="font-bold text-white text-xs">Upload Constraints & Rules</p>
+                  <p className="text-slate-200">• <strong className="text-white">Formats:</strong> .CSV or .TXT files</p>
+                  <p className="text-slate-200">• <strong className="text-white">Providers:</strong> Any domain (Gmail, Outlook, Yahoo, custom corporate domains like @company.com)</p>
+                  <p className="text-slate-200">• <strong className="text-white">Delimiters:</strong> Commas, tabs, semicolons, or newlines</p>
+                  <p className="text-slate-200">• <strong className="text-white">Smart Match:</strong> Auto-skips header rows (email, leads, name) & automatically deduplicates</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
         </div>
 
@@ -549,32 +599,58 @@ export function ComposeView() {
 
         {/* INLINE SETTINGS: Delay between 2 emails & Hourly Limit */}
         <div className="flex flex-wrap items-center gap-4 sm:gap-6 py-2 border-t border-slate-100 pt-3">
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2">
             <span className="text-xs text-slate-500 font-medium">
               Delay between 2 emails
             </span>
+            <TooltipProvider>
+              <Tooltip delayDuration={200}>
+                <TooltipTrigger asChild>
+                  <button type="button" className="text-slate-400 hover:text-slate-600 transition-colors cursor-help" aria-label="Delay details">
+                    <Info className="w-3.5 h-3.5" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="text-[11px] p-2.5 max-w-[230px]">
+                  <p className="font-semibold text-white mb-0.5">Inter-Send Delay (seconds)</p>
+                  <p>Mandatory pause between consecutive email sends. Prevents spam filters and protects domain reputation.</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             <input
               type="number"
               min={0}
               max={3600}
               value={delaySeconds}
               onChange={(e) => setDelaySeconds(Math.max(0, parseInt(e.target.value, 10) || 0))}
-              className="w-14 h-8 rounded-xl bg-[#f4f6f8] text-center text-xs font-bold text-slate-800 border-none focus:outline-none focus:ring-1 focus:ring-[#00a84e] cursor-text"
+              className="w-14 h-8 rounded-xl bg-[#f4f6f8] text-center text-xs font-bold text-slate-800 border-none outline-none focus:outline-none focus:ring-1 focus:ring-[#00a84e] cursor-text"
             />
             <span className="text-xs text-slate-400">sec</span>
           </div>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2">
             <span className="text-xs text-slate-500 font-medium">
               Hourly Limit
             </span>
+            <TooltipProvider>
+              <Tooltip delayDuration={200}>
+                <TooltipTrigger asChild>
+                  <button type="button" className="text-slate-400 hover:text-slate-600 transition-colors cursor-help" aria-label="Hourly limit details">
+                    <Info className="w-3.5 h-3.5" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="text-[11px] p-2.5 max-w-[230px]">
+                  <p className="font-semibold text-white mb-0.5">Hourly Rate Limit</p>
+                  <p>Maximum emails sent per hour. When exceeded, extra emails are safely deferred to the next hour and trigger a Slack alert.</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             <input
               type="number"
               min={1}
               max={5000}
               value={hourlyLimit}
               onChange={(e) => setHourlyLimit(Math.max(1, parseInt(e.target.value, 10) || 200))}
-              className="w-16 h-8 rounded-xl bg-[#f4f6f8] text-center text-xs font-bold text-slate-800 border-none focus:outline-none focus:ring-1 focus:ring-[#00a84e] cursor-text"
+              className="w-16 h-8 rounded-xl bg-[#f4f6f8] text-center text-xs font-bold text-slate-800 border-none outline-none focus:outline-none focus:ring-1 focus:ring-[#00a84e] cursor-text"
             />
           </div>
         </div>
