@@ -68,9 +68,8 @@ jobs:
           echo "🚀 Ensuring destination directory exists on Azure VM..."
           ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" "sudo mkdir -p /opt/reachinbox && sudo chown -R $VM_USER:$VM_USER /opt/reachinbox"
 
-          echo "📦 Syncing repository files to Azure VM via rsync..."
+          echo "📦 Syncing repository files and git metadata to Azure VM via rsync..."
           rsync -avz --delete \
-            --exclude '.git' \
             --exclude 'node_modules' \
             --exclude '.next' \
             --exclude '.env' \
@@ -92,6 +91,8 @@ jobs:
           script: |
             echo "🚀 Starting ReachInbox deployment on Azure VM..."
             cd /opt/reachinbox
+
+            echo "📌 Deployed Git Commit: $(git log -n 1 --oneline 2>/dev/null || echo 'No git history')"
 
             # Ensure production .env exists
             if [ ! -f .env ]; then
