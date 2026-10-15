@@ -54,7 +54,30 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Deploy to Azure VM via SSH
+      - name: Sync Code to Azure VM
+        env:
+          VM_SSH_KEY: ${{ secrets.VM_SSH_KEY }}
+          VM_HOST: ${{ secrets.VM_HOST || '104.43.57.147' }}
+          VM_USER: ${{ secrets.VM_USERNAME || 'azureuser' }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$VM_SSH_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -p 22 -H "$VM_HOST" >> ~/.ssh/known_hosts
+
+          echo "🚀 Ensuring destination directory exists on Azure VM..."
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no "$VM_USER@$VM_HOST" "sudo mkdir -p /opt/reachinbox && sudo chown -R $VM_USER:$VM_USER /opt/reachinbox"
+
+          echo "📦 Syncing repository files to Azure VM via rsync..."
+          rsync -avz --delete \
+            --exclude '.git' \
+            --exclude 'node_modules' \
+            --exclude '.next' \
+            --exclude '.env' \
+            -e "ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no" \
+            ./ "$VM_USER@$VM_HOST:/opt/reachinbox/"
+
+      - name: Start Docker Compose on Azure VM
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VM_HOST || '104.43.57.147' }}
@@ -68,23 +91,7 @@ jobs:
           script_stop: true
           script: |
             echo "🚀 Starting ReachInbox deployment on Azure VM..."
-
-            APP_DIR="/opt/reachinbox"
-            sudo mkdir -p "$APP_DIR"
-            sudo chown -R azureuser:azureuser "$APP_DIR"
-            cd "$APP_DIR"
-
-            # Authenticate git remote with current GitHub Action run token
-            if [ ! -d ".git" ]; then
-              git init -b main
-              git remote add origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
-            else
-              git remote set-url origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
-            fi
-
-            echo "Fetching latest changes from origin main..."
-            git fetch origin main
-            git reset --hard origin/main
+            cd /opt/reachinbox
 
             # Ensure production .env exists
             if [ ! -f .env ]; then
