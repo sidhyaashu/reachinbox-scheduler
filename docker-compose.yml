@@ -1,0 +1,223 @@
+services:
+  # ==========================================
+  # Infrastructure Services
+  # ==========================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: reachinbox_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: reachinbox_user
+      POSTGRES_PASSWORD: reachinbox_password
+      POSTGRES_DB: reachinbox_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U reachinbox_user -d reachinbox_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: reachinbox_redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.4
+    container_name: reachinbox_elasticsearch
+    restart: unless-stopped
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    volumes:
+      - esdata:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200 >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # ==========================================
+  # Database Migration One-Off Runner
+  # ==========================================
+  migrator:
+    build:
+      context: .
+      target: migrator
+    container_name: reachinbox_migrator
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGHOST: postgres
+      PGPORT: 5432
+      PGUSER: reachinbox_user
+      PGPASSWORD: reachinbox_password
+      PGDATABASE: reachinbox_db
+
+  # ==========================================
+  # Microservices
+  # ==========================================
+  api:
+    build:
+      context: .
+      target: api
+    container_name: reachinbox_api
+    restart: unless-stopped
+    ports:
+      - "4001:4001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrator:
+        condition: service_completed_successfully
+    environment:
+      NODE_ENV: production
+      EMAIL_API_PORT: 4001
+      PGHOST: postgres
+      PGPORT: 5432
+      PGUSER: reachinbox_user
+      PGPASSWORD: reachinbox_password
+      PGDATABASE: reachinbox_db
+
+  scheduler:
+    build:
+      context: .
+      target: scheduler
+    container_name: reachinbox_scheduler
+    restart: unless-stopped
+    ports:
+      - "4002:4002"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrator:
+        condition: service_completed_successfully
+    environment:
+      NODE_ENV: production
+      SCHEDULER_PORT: 4002
+      PGHOST: postgres
+      PGPORT: 5432
+      PGUSER: reachinbox_user
+      PGPASSWORD: reachinbox_password
+      PGDATABASE: reachinbox_db
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      OUTBOX_POLL_INTERVAL_MS: 1000
+
+  worker:
+    build:
+      context: .
+      target: worker
+    container_name: reachinbox_worker
+    restart: unless-stopped
+    ports:
+      - "4003:4003"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrator:
+        condition: service_completed_successfully
+    environment:
+      NODE_ENV: production
+      WORKER_PORT: 4003
+      PGHOST: postgres
+      PGPORT: 5432
+      PGUSER: reachinbox_user
+      PGPASSWORD: reachinbox_password
+      PGDATABASE: reachinbox_db
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      WORKER_CONCURRENCY: 5
+      MIN_INTER_SEND_DELAY_SECONDS: 2
+      DEFAULT_HOURLY_LIMIT: 200
+
+  search:
+    build:
+      context: .
+      target: search
+    container_name: reachinbox_search
+    restart: unless-stopped
+    ports:
+      - "4004:4004"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      migrator:
+        condition: service_completed_successfully
+    environment:
+      NODE_ENV: production
+      SEARCH_PORT: 4004
+      ELASTICSEARCH_NODE: http://elasticsearch:9200
+      PGHOST: postgres
+      PGPORT: 5432
+      PGUSER: reachinbox_user
+      PGPASSWORD: reachinbox_password
+      PGDATABASE: reachinbox_db
+
+  gateway:
+    build:
+      context: .
+      target: gateway
+    container_name: reachinbox_gateway
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    depends_on:
+      - api
+      - search
+      - redis
+    environment:
+      NODE_ENV: production
+      GATEWAY_PORT: 4000
+      EMAIL_API_URL: http://api:4001
+      SEARCH_SERVICE_URL: http://search:4004
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      PGHOST: postgres
+      PGPORT: 5432
+      PGUSER: reachinbox_user
+      PGPASSWORD: reachinbox_password
+      PGDATABASE: reachinbox_db
+
+  # ==========================================
+  # Edge Reverse Proxy
+  # ==========================================
+  nginx:
+    image: nginx:alpine
+    container_name: reachinbox_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - gateway
+
+volumes:
+  pgdata:
+  redisdata:
+  esdata:
