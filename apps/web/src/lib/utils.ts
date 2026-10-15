@@ -20,6 +20,22 @@ export function formatDateTime(dateInput: string | Date | null | undefined): str
   }).format(d);
 }
 
+export function formatFigmaScheduleTime(dateInput: string | Date | null | undefined): string {
+  if (!dateInput) return 'Tue 9:15:12 AM';
+  const d = new Date(dateInput);
+  if (isNaN(d.getTime())) return 'Tue 9:15:12 AM';
+
+  const weekday = new Intl.DateTimeFormat('en-US', { weekday: 'short' }).format(d);
+  const time = new Intl.DateTimeFormat('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true,
+  }).format(d);
+
+  return `${weekday} ${time}`;
+}
+
 export function formatRelativeTime(dateInput: string | Date | null | undefined): string {
   if (!dateInput) return '—';
   const target = new Date(dateInput).getTime();
