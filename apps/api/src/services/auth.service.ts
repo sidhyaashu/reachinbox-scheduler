@@ -69,19 +69,19 @@ export class AuthService {
       profile.picture
     );
 
-    // 4. Ensure default Sender exists for this user
-    await this.senderRepo.upsertDefaultSender(user.id, user.email, {
-      name: `${user.name} (ReachInbox Mailbox)`,
-      hourlyLimit: 200,
-      minDelaySeconds: 2,
-    });
-
-    // 5. Create secure session token
+    // 4 & 5. Parallelize default sender provisioning and session creation
     const rawToken = crypto.randomBytes(32).toString('hex');
     const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
 
-    await this.sessionRepo.createSession(user.id, tokenHash, expiresAt);
+    await Promise.all([
+      this.senderRepo.upsertDefaultSender(user.id, user.email, {
+        name: `${user.name} (ReachInbox Mailbox)`,
+        hourlyLimit: 200,
+        minDelaySeconds: 2,
+      }),
+      this.sessionRepo.createSession(user.id, tokenHash, expiresAt),
+    ]);
 
     return { token: rawToken, user };
   }
@@ -95,17 +95,18 @@ export class AuthService {
       'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'
     );
 
-    await this.senderRepo.upsertDefaultSender(user.id, user.email, {
-      name: `${user.name} (ReachInbox Mailbox)`,
-      hourlyLimit: 200,
-      minDelaySeconds: 2,
-    });
-
     const rawToken = crypto.randomBytes(32).toString('hex');
     const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
-    await this.sessionRepo.createSession(user.id, tokenHash, expiresAt);
+    await Promise.all([
+      this.senderRepo.upsertDefaultSender(user.id, user.email, {
+        name: `${user.name} (ReachInbox Mailbox)`,
+        hourlyLimit: 200,
+        minDelaySeconds: 2,
+      }),
+      this.sessionRepo.createSession(user.id, tokenHash, expiresAt),
+    ]);
 
     return { token: rawToken, user };
   }

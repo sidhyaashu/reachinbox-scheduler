@@ -1,7 +1,7 @@
 import express, { Express, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
-import { createProxyMiddleware } from 'http-proxy-middleware';
+import { createProxyMiddleware, fixRequestBody } from 'http-proxy-middleware';
 import crypto from 'crypto';
 import { config } from './config.js';
 import { setupBullBoard } from './bull-board.js';
@@ -35,11 +35,10 @@ export function createApp(): Express {
   const bullBoardRouter = setupBullBoard();
   app.use('/admin/queues', bullBoardRouter);
 
-  // 2. BFF Dashboard Aggregation Routes
-  app.use(express.json({ limit: '10mb' }));
-  app.use('/api/v1/dashboard', createDashboardRouter());
+  // 2. BFF Dashboard Aggregation Routes (Scoped body parsing to preserve proxy streaming)
+  app.use('/api/v1/dashboard', express.json({ limit: '10mb' }), createDashboardRouter());
 
-  // 3. Reverse Proxy Route Dispatching to Microservices
+  // 3. Reverse Proxy Route Dispatching to Microservices (Non-blocking streaming with fixRequestBody)
   // Forward /api/v1/emails to Email API Service (:4001)
   app.use(
     '/api/v1/emails',
@@ -47,6 +46,7 @@ export function createApp(): Express {
       target: config.EMAIL_API_URL,
       changeOrigin: true,
       pathRewrite: { '^/api/v1/emails': '/api/v1/emails' },
+      on: { proxyReq: fixRequestBody },
     })
   );
 
@@ -57,6 +57,7 @@ export function createApp(): Express {
       target: config.EMAIL_API_URL,
       changeOrigin: true,
       pathRewrite: { '^/auth': '/auth' },
+      on: { proxyReq: fixRequestBody },
     })
   );
 
@@ -67,6 +68,7 @@ export function createApp(): Express {
       target: config.EMAIL_API_URL,
       changeOrigin: true,
       pathRewrite: { '^/integrations/slack': '/integrations/slack' },
+      on: { proxyReq: fixRequestBody },
     })
   );
 
@@ -77,6 +79,7 @@ export function createApp(): Express {
       target: config.SEARCH_SERVICE_URL,
       changeOrigin: true,
       pathRewrite: { '^/api/v1/search': '/api/v1/search' },
+      on: { proxyReq: fixRequestBody },
     })
   );
 

@@ -65,9 +65,7 @@ export class OutboxDispatcher {
         return 0;
       }
 
-      for (const event of events) {
-        await this.dispatchEvent(event);
-      }
+      await Promise.all(events.map((event) => this.dispatchEvent(event)));
 
       return events.length;
     } finally {

@@ -48,6 +48,7 @@ export class SlackAlertProvider implements AlertProvider {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: messageText }),
+        signal: AbortSignal.timeout(5000),
       });
     } else if (integration.accessToken && integration.channelId) {
       await fetch('https://slack.com/api/chat.postMessage', {
@@ -60,6 +61,7 @@ export class SlackAlertProvider implements AlertProvider {
           channel: integration.channelId,
           text: messageText,
         }),
+        signal: AbortSignal.timeout(5000),
       });
     }
     console.log(`[SlackAlertProvider] Successfully dispatched Slack alert for sender ${payload.senderEmail}`);
@@ -101,6 +103,7 @@ export class WebhookAlertProvider implements AlertProvider {
         resumedAt: payload.nextWindowDate.toISOString(),
         timestamp: new Date().toISOString(),
       }),
+      signal: AbortSignal.timeout(5000),
     });
     console.log(`[WebhookAlertProvider] Dispatched alert to ${url}`);
   }
@@ -157,11 +160,11 @@ export class AlertService {
    */
   async notifyRateLimitHit(params: AlertPayload): Promise<void> {
     try {
-      // 1. Rate-limit alert deduplication: only 1 alert per sender per hour window
+      // 1. Rate-limit alert deduplication: atomically acquire 1-hour window lock in Redis
       const hourKey = params.nextWindowDate.toISOString().substring(0, 13);
       const alertDedupeKey = `rate_limit_alert_sent:${params.senderId}:${hourKey}`;
-      const alreadySent = await this.redis.get(alertDedupeKey);
-      if (alreadySent) {
+      const acquired = await this.redis.set(alertDedupeKey, 'true', 'EX', 3600, 'NX');
+      if (!acquired) {
         return; // Alert already dispatched for this hour window
       }
 
@@ -175,9 +178,6 @@ export class AlertService {
       });
 
       await Promise.allSettled(dispatchPromises);
-
-      // 3. Mark alert as sent for this hour
-      await this.redis.set(alertDedupeKey, 'true', 'EX', 3600);
     } catch (err: any) {
       console.error('[AlertService] Failed to dispatch alert:', err.message);
     }

@@ -135,8 +135,6 @@ export class EmailRepository {
       FROM emails
       WHERE user_id = $1 AND status IN ('SCHEDULED', 'QUEUED', 'PROCESSING', 'DEFERRED');
     `;
-    const countRes = await query<{ count: number }>(countSql, [userId]);
-    const total = countRes.rows[0]?.count || 0;
 
     const sql = `
       SELECT
@@ -149,8 +147,13 @@ export class EmailRepository {
       ORDER BY scheduled_at ASC
       LIMIT $2 OFFSET $3;
     `;
-    const res = await query<EmailRecord>(sql, [userId, limit, offset]);
 
+    const [countRes, res] = await Promise.all([
+      query<{ count: number }>(countSql, [userId]),
+      query<EmailRecord>(sql, [userId, limit, offset]),
+    ]);
+
+    const total = countRes.rows[0]?.count || 0;
     return { items: res.rows, total };
   }
 
@@ -167,8 +170,6 @@ export class EmailRepository {
       FROM emails
       WHERE user_id = $1 AND status IN ('SENT', 'FAILED');
     `;
-    const countRes = await query<{ count: number }>(countSql, [userId]);
-    const total = countRes.rows[0]?.count || 0;
 
     const sql = `
       SELECT
@@ -181,8 +182,13 @@ export class EmailRepository {
       ORDER BY COALESCE(sent_at, updated_at) DESC
       LIMIT $2 OFFSET $3;
     `;
-    const res = await query<EmailRecord>(sql, [userId, limit, offset]);
 
+    const [countRes, res] = await Promise.all([
+      query<{ count: number }>(countSql, [userId]),
+      query<EmailRecord>(sql, [userId, limit, offset]),
+    ]);
+
+    const total = countRes.rows[0]?.count || 0;
     return { items: res.rows, total };
   }
 
