@@ -4,19 +4,19 @@
 
 # Production domain with Automatic Free HTTPS (Let's Encrypt / ZeroSSL)
 reachinbox.ovanthra.com {
-    handle /health/* {
+    handle /health* {
         reverse_proxy gateway:4000
     }
-    handle /api/* {
+    handle /api* {
         reverse_proxy gateway:4000
     }
-    handle /auth/* {
+    handle /auth* {
         reverse_proxy gateway:4000
     }
-    handle /integrations/* {
+    handle /integrations* {
         reverse_proxy gateway:4000
     }
-    handle /admin/* {
+    handle /admin* {
         reverse_proxy gateway:4000
     }
 
@@ -42,19 +42,19 @@ reachinbox.ovanthra.com {
 
 # Fallback for direct IP or local testing over HTTP
 :80 {
-    handle /health/* {
+    handle /health* {
         reverse_proxy gateway:4000
     }
-    handle /api/* {
+    handle /api* {
         reverse_proxy gateway:4000
     }
-    handle /auth/* {
+    handle /auth* {
         reverse_proxy gateway:4000
     }
-    handle /integrations/* {
+    handle /integrations* {
         reverse_proxy gateway:4000
     }
-    handle /admin/* {
+    handle /admin* {
         reverse_proxy gateway:4000
     }
 

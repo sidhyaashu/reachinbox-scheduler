@@ -45,7 +45,7 @@ export function createApp(): Express {
     createProxyMiddleware({
       target: config.EMAIL_API_URL,
       changeOrigin: true,
-      pathRewrite: { '^/api/v1/emails': '/api/v1/emails' },
+      pathRewrite: (path) => (path.startsWith('/api/v1/emails') ? path : `/api/v1/emails${path}`),
       on: { proxyReq: fixRequestBody },
     })
   );
@@ -56,7 +56,7 @@ export function createApp(): Express {
     createProxyMiddleware({
       target: config.EMAIL_API_URL,
       changeOrigin: true,
-      pathRewrite: { '^/auth': '/auth' },
+      pathRewrite: (path) => (path.startsWith('/auth') ? path : `/auth${path}`),
       on: { proxyReq: fixRequestBody },
     })
   );
@@ -67,7 +67,7 @@ export function createApp(): Express {
     createProxyMiddleware({
       target: config.EMAIL_API_URL,
       changeOrigin: true,
-      pathRewrite: { '^/integrations/slack': '/integrations/slack' },
+      pathRewrite: (path) => (path.startsWith('/integrations/slack') ? path : `/integrations/slack${path}`),
       on: { proxyReq: fixRequestBody },
     })
   );
@@ -78,7 +78,7 @@ export function createApp(): Express {
     createProxyMiddleware({
       target: config.SEARCH_SERVICE_URL,
       changeOrigin: true,
-      pathRewrite: { '^/api/v1/search': '/api/v1/search' },
+      pathRewrite: (path) => (path.startsWith('/api/v1/search') ? path : `/api/v1/search${path}`),
       on: { proxyReq: fixRequestBody },
     })
   );
