@@ -69,4 +69,46 @@ export class AuthController {
       next(err);
     }
   };
+
+  demoLogin = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const email = (req.body?.email as string) || 'alex.founder@reachinbox.ai';
+      const name = (req.body?.name as string) || 'Alex Founder';
+      const { token, user } = await this.authService.createDemoSession(email, name);
+
+      res.cookie('reachinbox_session', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+      });
+
+      res.status(200).json({
+        success: true,
+        data: { user, message: 'Demo session created successfully' },
+      });
+    } catch (err) {
+      next(err);
+    }
+  };
+
+  demoLoginRedirect = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const email = (req.query?.email as string) || 'alex.founder@reachinbox.ai';
+      const name = (req.query?.name as string) || 'Alex Founder';
+      const { token } = await this.authService.createDemoSession(email, name);
+
+      res.cookie('reachinbox_session', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+      });
+
+      const frontendUrl = process.env.WEB_URL || 'http://localhost:3000';
+      res.redirect(`${frontendUrl}/dashboard`);
+    } catch (err) {
+      next(err);
+    }
+  };
 }

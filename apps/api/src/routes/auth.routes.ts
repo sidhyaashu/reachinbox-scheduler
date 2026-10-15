@@ -9,6 +9,10 @@ export function createAuthRouter(controller: AuthController = new AuthController
   router.get('/google', controller.googleRedirect);
   router.get('/google/callback', controller.googleCallback);
 
+  // Demo / local evaluation login without Google credentials
+  router.post('/demo-login', controller.demoLogin);
+  router.get('/demo-login', controller.demoLoginRedirect);
+
   // Authenticated user endpoints
   router.get('/me', authMiddleware, controller.me);
   router.post('/logout', controller.logout);

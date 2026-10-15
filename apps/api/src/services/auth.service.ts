@@ -86,6 +86,30 @@ export class AuthService {
     return { token: rawToken, user };
   }
 
+  async createDemoSession(email = 'alex.founder@reachinbox.ai', name = 'Alex Founder'): Promise<{ token: string; user: User }> {
+    const demoGoogleId = `demo_${email}`;
+    const user = await this.userRepo.upsertGoogleUser(
+      demoGoogleId,
+      email,
+      name,
+      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'
+    );
+
+    await this.senderRepo.upsertDefaultSender(user.id, user.email, {
+      name: `${user.name} (ReachInbox Mailbox)`,
+      hourlyLimit: 200,
+      minDelaySeconds: 2,
+    });
+
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+    await this.sessionRepo.createSession(user.id, tokenHash, expiresAt);
+
+    return { token: rawToken, user };
+  }
+
   async logout(rawToken: string): Promise<void> {
     const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
     await this.sessionRepo.deleteSession(tokenHash);

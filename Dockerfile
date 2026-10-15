@@ -21,6 +21,7 @@ COPY apps/scheduler/package.json ./apps/scheduler/
 COPY apps/worker/package.json ./apps/worker/
 COPY apps/search/package.json ./apps/search/
 COPY apps/gateway/package.json ./apps/gateway/
+COPY apps/web/package.json ./apps/web/
 
 # Install dependencies
 RUN npm ci
@@ -35,6 +36,7 @@ COPY apps/scheduler ./apps/scheduler
 COPY apps/worker ./apps/worker
 COPY apps/search ./apps/search
 COPY apps/gateway ./apps/gateway
+COPY apps/web ./apps/web
 
 # Compile all packages and applications
 RUN npm run build
@@ -91,3 +93,14 @@ WORKDIR /app
 COPY --from=builder /app /app
 EXPOSE 4000
 CMD ["node", "apps/gateway/dist/server.js"]
+
+# ==========================================
+# Target: Next.js Web Frontend
+# ==========================================
+FROM base AS web
+WORKDIR /app
+COPY --from=builder /app /app
+EXPOSE 3000
+ENV NODE_ENV=production
+CMD ["npm", "--workspace=@reachinbox/web", "run", "start"]
+
