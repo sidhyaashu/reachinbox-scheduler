@@ -144,6 +144,14 @@ function DashboardContent() {
     } else {
       params.set('status', status);
     }
+    // Synchronize active tab with filter category
+    if (status === 'SENT' && activeTab !== 'sent') {
+      setActiveTab('sent');
+      params.set('tab', 'sent');
+    } else if ((status === 'SCHEDULED' || status === 'PROCESSING') && activeTab !== 'scheduled') {
+      setActiveTab('scheduled');
+      params.set('tab', 'scheduled');
+    }
     router.push(`/dashboard?${params.toString()}`);
   };
 
@@ -301,6 +309,21 @@ function DashboardContent() {
               >
                 <RotateCw className={`w-4 h-4 ${spinning ? 'animate-spin text-[#00a84e]' : ''}`} />
               </button>
+
+              {/* Active Filter Pill */}
+              {filterStatus !== 'ALL' && (
+                <div className="hidden xs:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-[#e8f5e9] text-[#00873d] shrink-0 border border-[#bbf7d0]">
+                  <span>Status: {filterStatus.charAt(0) + filterStatus.slice(1).toLowerCase()}</span>
+                  <button
+                    type="button"
+                    onClick={() => handleFilterChange('ALL')}
+                    className="hover:text-emerald-900 cursor-pointer p-0.5 rounded-full"
+                    title="Clear filter"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Email Rows List */}
