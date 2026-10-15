@@ -186,7 +186,11 @@ export class SenderRepository {
         refreshToken || null,
         accessToken || null,
       ]);
-      return res.rows[0];
+      const sender = res.rows[0];
+      if (!sender) {
+        throw new Error('[SenderRepository] Failed to update Google OAuth sender.');
+      }
+      return sender;
     }
 
     const insertSql = `
@@ -220,6 +224,10 @@ export class SenderRepository {
       refreshToken || null,
       accessToken || null,
     ]);
-    return res.rows[0];
+    const sender = res.rows[0];
+    if (!sender) {
+      throw new Error('[SenderRepository] Failed to link Google OAuth sender.');
+    }
+    return sender;
   }
 }
