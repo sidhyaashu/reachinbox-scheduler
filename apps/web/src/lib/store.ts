@@ -91,14 +91,14 @@ export const useSchedulerStore = create<SchedulerState>((set, get) => ({
       ]);
 
       let user = summary?.user || null;
-      if (!user) {
+      if (!user || !user.avatarUrl) {
         const me = await apiClient.auth.getCurrentUser().catch(() => null);
         if (me) {
           user = {
-            id: me.id,
-            email: me.email,
-            name: me.name,
-            avatarUrl: null,
+            id: user?.id || me.id,
+            email: user?.email || me.email,
+            name: user?.name || me.name,
+            avatarUrl: user?.avatarUrl || me.avatarUrl || null,
           };
         }
       }

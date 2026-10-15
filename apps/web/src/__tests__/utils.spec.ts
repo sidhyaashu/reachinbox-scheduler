@@ -4,6 +4,7 @@ import {
   formatFigmaScheduleTime,
   formatDateTime,
   formatRelativeTime,
+  getFallbackInitials,
 } from '../lib/utils.js';
 
 describe('Web Utilities & Parsers', () => {
@@ -80,4 +81,28 @@ recipient,Skip Header,Test`;
       expect(formatRelativeTime(past)).toBe('30m ago');
     });
   });
+
+  describe('getFallbackInitials', () => {
+    it('returns 2 uppercase letters for multi-word names', () => {
+      expect(getFallbackInitials('Oliver Brown')).toBe('OB');
+      expect(getFallbackInitials('Alex Founder')).toBe('AF');
+      expect(getFallbackInitials('John Fitzgerald Kennedy')).toBe('JF');
+    });
+
+    it('returns first 2 uppercase letters for single-word names', () => {
+      expect(getFallbackInitials('GuffixMind')).toBe('GU');
+      expect(getFallbackInitials('reachinbox')).toBe('RE');
+    });
+
+    it('falls back to email prefix letters when name is missing or empty', () => {
+      expect(getFallbackInitials(null, 'guffixmind@gmail.com')).toBe('GU');
+      expect(getFallbackInitials('', 'alex@acme.com')).toBe('AL');
+    });
+
+    it('handles single-character names and empty values with uppercase fallback', () => {
+      expect(getFallbackInitials('X')).toBe('X');
+      expect(getFallbackInitials(null, null)).toBe('US');
+    });
+  });
 });
+

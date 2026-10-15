@@ -143,9 +143,26 @@ async function request<T>(
 export const apiClient = {
   auth: {
     onUnauthorized,
-    async getCurrentUser(): Promise<{ id: string; email: string; name: string } | null> {
+    async getCurrentUser(): Promise<UserProfile | null> {
       try {
-        return await request<{ id: string; email: string; name: string }>('/auth/me');
+        const res = await request<any>('/auth/me');
+        if (res?.user) {
+          return {
+            id: res.user.id,
+            email: res.user.email,
+            name: res.user.name,
+            avatarUrl: res.user.avatarUrl ?? null,
+          };
+        }
+        if (res?.id) {
+          return {
+            id: res.id,
+            email: res.email,
+            name: res.name,
+            ...(res.avatarUrl !== undefined ? { avatarUrl: res.avatarUrl } : {}),
+          };
+        }
+        return null;
       } catch {
         return null;
       }
