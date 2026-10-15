@@ -36,6 +36,9 @@ Thumbs.db
 .idea/
 *.suo
 *.ntvs*
-*.njsproj
 *.sln
 *.sw?
+
+# Private demo scripts / notes
+DEMO_SCRIPT.md
+
