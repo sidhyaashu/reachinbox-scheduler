@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useSchedulerStore } from '../lib/store';
-import { Clock, Send, ChevronDown, ExternalLink, LogOut, X } from 'lucide-react';
+import { Clock, Send, ChevronDown, ExternalLink, LogOut, X, Archive, FileText } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from './ui/avatar';
 import { Button } from './ui/button';
 import {
@@ -159,6 +159,64 @@ export function Sidebar() {
             >
               {counts.sent}
             </span>
+          </button>
+
+          {/* Drafts Nav Pill */}
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('drafts');
+              setMobileSidebarOpen(false);
+              router.push('/dashboard?tab=drafts&compose=true');
+            }}
+            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm transition-all cursor-pointer ${
+              activeTab === 'drafts'
+                ? 'bg-[#e8f5e9] text-[#00873d] font-semibold'
+                : 'text-slate-600 hover:bg-slate-50 font-normal'
+            }`}
+          >
+            <div className="flex items-center gap-2.5">
+              <FileText className={`w-4 h-4 ${activeTab === 'drafts' ? 'text-[#00873d]' : 'text-slate-500'}`} />
+              <span>Drafts</span>
+            </div>
+            {counts.drafts > 0 && (
+              <span
+                className={`text-xs ${
+                  activeTab === 'drafts' ? 'text-[#00873d] font-bold' : 'text-slate-400'
+                }`}
+              >
+                {counts.drafts}
+              </span>
+            )}
+          </button>
+
+          {/* Archive Nav Pill */}
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('archive');
+              setMobileSidebarOpen(false);
+              router.push('/dashboard?tab=archive');
+            }}
+            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm transition-all cursor-pointer ${
+              activeTab === 'archive'
+                ? 'bg-[#e8f5e9] text-[#00873d] font-semibold'
+                : 'text-slate-600 hover:bg-slate-50 font-normal'
+            }`}
+          >
+            <div className="flex items-center gap-2.5">
+              <Archive className={`w-4 h-4 ${activeTab === 'archive' ? 'text-[#00873d]' : 'text-slate-500'}`} />
+              <span>Archive</span>
+            </div>
+            {counts.archive > 0 && (
+              <span
+                className={`text-xs ${
+                  activeTab === 'archive' ? 'text-[#00873d] font-bold' : 'text-slate-400'
+                }`}
+              >
+                {counts.archive}
+              </span>
+            )}
           </button>
         </div>
       </div>

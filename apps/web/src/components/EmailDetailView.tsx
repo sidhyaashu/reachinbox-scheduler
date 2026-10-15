@@ -7,6 +7,7 @@ import {
   ArrowLeft,
   Star,
   Archive,
+  ArchiveRestore,
   Trash2,
   ChevronDown,
   CheckCircle,
@@ -17,14 +18,25 @@ import {
   UserCheck,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
-import { formatFigmaScheduleTime } from '../lib/utils';
+import { formatFigmaScheduleTime, formatDateTime, parseRichEmailContent } from '../lib/utils';
 import { useToast } from './Toast';
 
 export function EmailDetailView() {
   const router = useRouter();
-  const { selectedEmail, closeDetail, cancelEmail, user, sender, activeTab } = useSchedulerStore();
+  const {
+    selectedEmail,
+    closeDetail,
+    cancelEmail,
+    user,
+    sender,
+    activeTab,
+    starredEmailIds,
+    toggleStar,
+    archivedEmailIds,
+    archiveEmail,
+    unarchiveEmail,
+  } = useSchedulerStore();
   const { success, error, info } = useToast();
-  const [isStarred, setIsStarred] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   const handleBack = () => {
@@ -102,24 +114,37 @@ export function EmailDetailView() {
         <div className="flex items-center gap-1.5 2xs:gap-2.5 shrink-0">
           <button
             type="button"
-            onClick={() => setIsStarred(!isStarred)}
+            onClick={() => toggleStar(selectedEmail.id)}
             className="p-1.5 text-slate-400 hover:text-amber-500 transition-colors cursor-pointer"
-            title="Star email"
+            title={starredEmailIds.includes(selectedEmail.id) ? 'Unstar email' : 'Star email'}
           >
             <Star
               className={`w-4 h-4 ${
-                isStarred ? 'fill-amber-400 text-amber-400' : 'text-slate-400'
+                starredEmailIds.includes(selectedEmail.id) ? 'fill-amber-400 text-amber-400' : 'text-slate-400'
               }`}
             />
           </button>
 
           <button
             type="button"
-            onClick={() => info('Archived', 'Email archived')}
+            onClick={() => {
+              if (archivedEmailIds.includes(selectedEmail.id)) {
+                unarchiveEmail(selectedEmail.id);
+                success('Restored', 'Email restored to inbox');
+              } else {
+                archiveEmail(selectedEmail.id);
+                success('Archived', 'Email moved to archive');
+                handleBack();
+              }
+            }}
             className="p-1.5 text-slate-400 hover:text-slate-700 transition-colors cursor-pointer hidden 2xs:block"
-            title="Archive"
+            title={archivedEmailIds.includes(selectedEmail.id) ? 'Restore to inbox' : 'Archive email'}
           >
-            <Archive className="w-4 h-4" />
+            {archivedEmailIds.includes(selectedEmail.id) ? (
+              <ArchiveRestore className="w-4 h-4 text-[#00a84e]" />
+            ) : (
+              <Archive className="w-4 h-4" />
+            )}
           </button>
 
           <button
@@ -207,20 +232,15 @@ export function EmailDetailView() {
           </div>
 
           <div className="text-xs text-slate-400 font-normal sm:text-right shrink-0">
-            {new Date(selectedEmail.createdAt).toLocaleString(undefined, {
-              month: 'short',
-              day: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit',
-            })}
+            {formatDateTime(selectedEmail.createdAt)}
           </div>
         </div>
 
         {/* Message Body Content */}
         <div className="text-sm text-slate-800 leading-relaxed space-y-4 pt-1">
           {selectedEmail.body ? (
-            <div className="whitespace-pre-wrap font-sans text-xs sm:text-sm text-slate-800 bg-[#f8fafc]/50 p-4 2xs:p-6 rounded-2xl border border-slate-100">
-              {selectedEmail.body}
+            <div className="font-sans text-xs sm:text-sm text-slate-800 bg-[#f8fafc]/50 p-4 2xs:p-6 rounded-2xl border border-slate-100 leading-relaxed [&_strong]:font-bold [&_em]:italic [&_u]:underline [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_blockquote]:border-l-2 [&_blockquote]:border-emerald-500 [&_blockquote]:pl-3 [&_blockquote]:italic">
+              <div dangerouslySetInnerHTML={{ __html: parseRichEmailContent(selectedEmail.body) }} />
             </div>
           ) : (
             <p className="text-slate-400 italic text-xs">No email message content provided.</p>

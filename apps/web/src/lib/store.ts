@@ -15,13 +15,15 @@ interface SchedulerState {
   user: UserProfile | null;
   sender: DashboardSummary['sender'] | null;
   // Navigation & Active View
-  activeTab: 'scheduled' | 'sent';
+  activeTab: 'scheduled' | 'sent' | 'archive' | 'drafts';
   mobileSidebarOpen: boolean;
   filterStatus: 'ALL' | 'SCHEDULED' | 'PROCESSING' | 'SENT' | 'FAILED';
   // Email Records
   scheduledEmails: EmailRecord[];
   sentEmails: EmailRecord[];
-  counts: { scheduled: number; sent: number };
+  archivedEmailIds: string[];
+  starredEmailIds: string[];
+  counts: { scheduled: number; sent: number; archive: number; drafts: number };
   // Selected Email for Detail View
   selectedEmail: EmailRecord | null;
   detailOpen: boolean;
@@ -40,7 +42,7 @@ interface SchedulerState {
 
   // Actions
   loadDashboard: () => Promise<void>;
-  setActiveTab: (tab: 'scheduled' | 'sent') => void;
+  setActiveTab: (tab: 'scheduled' | 'sent' | 'archive' | 'drafts') => void;
   setMobileSidebarOpen: (open: boolean) => void;
   setFilterStatus: (status: 'ALL' | 'SCHEDULED' | 'PROCESSING' | 'SENT' | 'FAILED') => void;
   selectEmail: (email: EmailRecord) => void;
@@ -51,6 +53,9 @@ interface SchedulerState {
   closeSendLater: () => void;
   setComposeDraft: (draft: Partial<ComposeDraft>) => void;
   clearComposeDraft: () => void;
+  toggleStar: (emailId: string) => void;
+  archiveEmail: (emailId: string) => void;
+  unarchiveEmail: (emailId: string) => void;
   setSearchQuery: (query: string) => void;
   cancelEmail: (emailId: string) => Promise<void>;
   scheduleCampaign: (payload: ScheduleBatchPayload) => Promise<{ scheduledCount: number }>;
@@ -58,6 +63,40 @@ interface SchedulerState {
 }
 
 let activeSearchRequestId = 0;
+
+const getInitialStarred = (): string[] => {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem('reachinbox_starred_emails');
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+};
+
+const getInitialArchived = (): string[] => {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem('reachinbox_archived_emails');
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+};
+
+const getInitialDraft = (): ComposeDraft | null => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem('reachinbox_compose_draft');
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+};
+
+const initialDraft = getInitialDraft();
+const initialArchived = getInitialArchived();
+const initialStarred = getInitialStarred();
 
 export const useSchedulerStore = create<SchedulerState>((set, get) => ({
   user: null,
@@ -67,12 +106,14 @@ export const useSchedulerStore = create<SchedulerState>((set, get) => ({
   filterStatus: 'ALL',
   scheduledEmails: [],
   sentEmails: [],
-  counts: { scheduled: 0, sent: 0 },
+  archivedEmailIds: initialArchived,
+  starredEmailIds: initialStarred,
+  counts: { scheduled: 0, sent: 0, archive: initialArchived.length, drafts: initialDraft ? 1 : 0 },
   selectedEmail: null,
   detailOpen: false,
   composeOpen: false,
   sendLaterOpen: false,
-  composeDraft: null,
+  composeDraft: initialDraft,
   searchQuery: '',
   searchResults: null,
   isSearching: false,
@@ -106,8 +147,9 @@ export const useSchedulerStore = create<SchedulerState>((set, get) => ({
       const scheduledItems = scheduledRes.items.length > 0 ? scheduledRes.items : (summary?.scheduledEmails || []);
       const sentItems = sentRes.items.length > 0 ? sentRes.items : (summary?.sentEmails || []);
 
-      const scheduledCount = summary?.stats?.totalScheduled ?? Math.max(scheduledRes.total, scheduledItems.length);
-      const sentCount = summary?.stats?.totalSent ?? Math.max(sentRes.total, sentItems.length);
+      const archivedIds = get().archivedEmailIds;
+      const activeScheduled = scheduledItems.filter((e) => !archivedIds.includes(e.id));
+      const activeSent = sentItems.filter((e) => !archivedIds.includes(e.id));
 
       set({
         user,
@@ -115,8 +157,10 @@ export const useSchedulerStore = create<SchedulerState>((set, get) => ({
         scheduledEmails: scheduledItems,
         sentEmails: sentItems,
         counts: {
-          scheduled: scheduledCount,
-          sent: sentCount,
+          scheduled: activeScheduled.length,
+          sent: activeSent.length,
+          archive: archivedIds.length,
+          drafts: get().composeDraft ? 1 : 0,
         },
         isLoading: false,
         isRefreshing: false,
@@ -126,8 +170,12 @@ export const useSchedulerStore = create<SchedulerState>((set, get) => ({
     }
   },
 
-  setActiveTab: (tab: 'scheduled' | 'sent') => {
-    set({ activeTab: tab, selectedEmail: null, detailOpen: false, mobileSidebarOpen: false });
+  setActiveTab: (tab: 'scheduled' | 'sent' | 'archive' | 'drafts') => {
+    if (tab === 'drafts') {
+      set({ composeOpen: true, detailOpen: false, mobileSidebarOpen: false });
+      return;
+    }
+    set({ activeTab: tab, selectedEmail: null, detailOpen: false, composeOpen: false, mobileSidebarOpen: false });
   },
 
   setMobileSidebarOpen: (open: boolean) => {
@@ -139,7 +187,7 @@ export const useSchedulerStore = create<SchedulerState>((set, get) => ({
   },
 
   selectEmail: (email: EmailRecord) => {
-    set({ selectedEmail: email, detailOpen: true, mobileSidebarOpen: false });
+    set({ selectedEmail: email, detailOpen: true, composeOpen: false, mobileSidebarOpen: false });
   },
 
   closeDetail: () => {
@@ -163,20 +211,95 @@ export const useSchedulerStore = create<SchedulerState>((set, get) => ({
   },
 
   setComposeDraft: (draft: Partial<ComposeDraft>) => {
+    const existing = get().composeDraft || {
+      recipients: [],
+      subject: '',
+      body: '',
+      delaySeconds: 2,
+      hourlyLimit: 200,
+      scheduledAt: '',
+    };
+    const updated: ComposeDraft = {
+      recipients: draft.recipients !== undefined ? draft.recipients : existing.recipients,
+      subject: draft.subject !== undefined ? draft.subject : existing.subject,
+      body: draft.body !== undefined ? draft.body : existing.body,
+      delaySeconds: draft.delaySeconds !== undefined ? draft.delaySeconds : existing.delaySeconds,
+      hourlyLimit: draft.hourlyLimit !== undefined ? draft.hourlyLimit : existing.hourlyLimit,
+      scheduledAt: draft.scheduledAt !== undefined ? draft.scheduledAt : existing.scheduledAt,
+    };
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('reachinbox_compose_draft', JSON.stringify(updated));
+    }
     set((state) => ({
-      composeDraft: {
-        recipients: draft.recipients ?? state.composeDraft?.recipients ?? [],
-        subject: draft.subject ?? state.composeDraft?.subject ?? '',
-        body: draft.body ?? state.composeDraft?.body ?? '',
-        delaySeconds: draft.delaySeconds ?? state.composeDraft?.delaySeconds ?? 2,
-        hourlyLimit: draft.hourlyLimit ?? state.composeDraft?.hourlyLimit ?? 200,
-        scheduledAt: draft.scheduledAt ?? state.composeDraft?.scheduledAt ?? '',
-      },
+      composeDraft: updated,
+      counts: { ...state.counts, drafts: 1 },
     }));
   },
 
   clearComposeDraft: () => {
-    set({ composeDraft: null });
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('reachinbox_compose_draft');
+    }
+    set((state) => ({
+      composeDraft: null,
+      counts: { ...state.counts, drafts: 0 },
+    }));
+  },
+
+  toggleStar: (emailId: string) => {
+    const current = get().starredEmailIds;
+    const updated = current.includes(emailId)
+      ? current.filter((id) => id !== emailId)
+      : [...current, emailId];
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('reachinbox_starred_emails', JSON.stringify(updated));
+    }
+    set({ starredEmailIds: updated });
+  },
+
+  archiveEmail: (emailId: string) => {
+    const current = get().archivedEmailIds;
+    if (!current.includes(emailId)) {
+      const updated = [...current, emailId];
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('reachinbox_archived_emails', JSON.stringify(updated));
+      }
+      set((state) => {
+        const activeScheduled = state.scheduledEmails.filter((e) => !updated.includes(e.id));
+        const activeSent = state.sentEmails.filter((e) => !updated.includes(e.id));
+        return {
+          archivedEmailIds: updated,
+          detailOpen: false,
+          selectedEmail: null,
+          counts: {
+            ...state.counts,
+            archive: updated.length,
+            scheduled: activeScheduled.length,
+            sent: activeSent.length,
+          },
+        };
+      });
+    }
+  },
+
+  unarchiveEmail: (emailId: string) => {
+    const updated = get().archivedEmailIds.filter((id) => id !== emailId);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('reachinbox_archived_emails', JSON.stringify(updated));
+    }
+    set((state) => {
+      const activeScheduled = state.scheduledEmails.filter((e) => !updated.includes(e.id));
+      const activeSent = state.sentEmails.filter((e) => !updated.includes(e.id));
+      return {
+        archivedEmailIds: updated,
+        counts: {
+          ...state.counts,
+          archive: updated.length,
+          scheduled: activeScheduled.length,
+          sent: activeSent.length,
+        },
+      };
+    });
   },
 
   setSearchQuery: async (query: string) => {
@@ -190,7 +313,6 @@ export const useSchedulerStore = create<SchedulerState>((set, get) => ({
     set({ isSearching: true });
     try {
       const res = await apiClient.search.searchEmails(query);
-      // Guard against out-of-order asynchronous responses (race conditions)
       if (reqId === activeSearchRequestId && get().searchQuery === query) {
         set({ searchResults: res.items, isSearching: false });
       }

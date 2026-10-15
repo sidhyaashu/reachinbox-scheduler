@@ -5,35 +5,71 @@ export function cn(...inputs: ClassValue[]): string {
   return twMerge(clsx(inputs));
 }
 
-export function formatDateTime(dateInput: string | Date | null | undefined): string {
+export function formatDateTime(
+  dateInput: string | Date | null | undefined,
+  timeZone: string = 'Asia/Kolkata'
+): string {
   if (!dateInput) return '—';
   const d = new Date(dateInput);
   if (isNaN(d.getTime())) return '—';
 
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-  }).format(d);
+  return (
+    new Intl.DateTimeFormat('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+      timeZone,
+    }).format(d) + ' IST'
+  );
 }
 
-export function formatFigmaScheduleTime(dateInput: string | Date | null | undefined): string {
+export function formatFigmaScheduleTime(
+  dateInput: string | Date | null | undefined,
+  timeZone: string = 'Asia/Kolkata'
+): string {
   if (!dateInput) return 'Tue 9:15:12 AM';
   const d = new Date(dateInput);
   if (isNaN(d.getTime())) return 'Tue 9:15:12 AM';
 
-  const weekday = new Intl.DateTimeFormat('en-US', { weekday: 'short' }).format(d);
+  const weekday = new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone }).format(d);
   const time = new Intl.DateTimeFormat('en-US', {
     hour: 'numeric',
     minute: '2-digit',
     second: '2-digit',
     hour12: true,
+    timeZone,
   }).format(d);
 
-  return `${weekday} ${time}`;
+  return `${weekday} ${time} IST`;
+}
+
+/**
+ * Parses email content into rich HTML.
+ * Handles rich HTML from contentEditable, as well as legacy markdown formatting (**bold**, *italic*, lists).
+ */
+export function parseRichEmailContent(content: string): string {
+  if (!content) return '';
+  // Check if it already contains HTML tags
+  const hasHtml = /<[a-z][\s\S]*>/i.test(content);
+  if (hasHtml) {
+    return content;
+  }
+
+  // Convert markdown markers to HTML
+  let parsed = content
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+    .replace(/__(.*?)__/g, '<u>$1</u>')
+    .replace(/~~(.*?)~~/g, '<del>$1</del>')
+    .replace(/^\s*-\s+(.*)$/gm, '<li>$1</li>')
+    .replace(/^\s*\d+\.\s+(.*)$/gm, '<li>$1</li>')
+    .replace(/\n\n+/g, '<br/><br/>')
+    .replace(/\n/g, '<br/>');
+
+  return parsed;
 }
 
 export function formatRelativeTime(dateInput: string | Date | null | undefined): string {

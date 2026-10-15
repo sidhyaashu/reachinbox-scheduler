@@ -42,7 +42,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from './ui/tooltip';
-import { parseLeadsFromTextOrCsv } from '../lib/utils';
+import { parseLeadsFromTextOrCsv, parseRichEmailContent } from '../lib/utils';
 import { useToast } from './Toast';
 
 interface AttachmentFile {
@@ -145,7 +145,36 @@ export function ComposeView() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const attachmentInputRef = useRef<HTMLInputElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const editorRef = useRef<HTMLDivElement>(null);
+
+  // Initialize contentEditable with draft/body on mount
+  useEffect(() => {
+    if (editorRef.current && body) {
+      editorRef.current.innerHTML = parseRichEmailContent(body);
+    }
+  }, []);
+
+  const handleEditorInput = () => {
+    if (editorRef.current) {
+      setBody(editorRef.current.innerHTML);
+    }
+  };
+
+  const executeCommand = (cmd: string, arg: string | undefined = undefined) => {
+    if (editorRef.current) {
+      editorRef.current.focus();
+      document.execCommand(cmd, false, arg);
+      setBody(editorRef.current.innerHTML);
+    }
+  };
+
+  const insertTag = (tag: string) => {
+    if (editorRef.current) {
+      editorRef.current.focus();
+      document.execCommand('insertText', false, tag);
+      setBody(editorRef.current.innerHTML);
+    }
+  };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -233,22 +262,6 @@ export function ComposeView() {
     }
   };
 
-  // Formatting helpers for rich text toolbar
-  const insertFormatting = (prefix: string, suffix: string = '') => {
-    const ta = textareaRef.current;
-    if (!ta) return;
-    const start = ta.selectionStart;
-    const end = ta.selectionEnd;
-    const selected = body.slice(start, end);
-    const replacement = `${prefix}${selected || 'text'}${suffix}`;
-    const newBody = body.slice(0, start) + replacement + body.slice(end);
-    setBody(newBody);
-    setTimeout(() => {
-      ta.focus();
-      ta.setSelectionRange(start + prefix.length, start + replacement.length - suffix.length);
-    }, 0);
-  };
-
   const handleSend = async () => {
     if (recipients.length === 0) {
       error('Missing Recipient', 'Please add at least one recipient email or upload a CSV lead list');
@@ -319,29 +332,24 @@ export function ComposeView() {
 
         {/* Right Action Icons & Send Later button */}
         <div className="flex items-center gap-2 2xs:gap-3">
-          {/* Real Attachment Trigger */}
-          <input
-            type="file"
-            ref={attachmentInputRef}
-            className="hidden"
-            accept="image/*,.pdf,.doc,.docx,.csv,.txt"
-            onChange={handleAttachmentUpload}
-          />
-          <div className="relative">
+          {/* Discard Draft button if any content exists */}
+          {composeDraft && (composeDraft.recipients.length > 0 || composeDraft.subject || composeDraft.body) && (
             <button
               type="button"
-              onClick={() => attachmentInputRef.current?.click()}
-              className="p-1.5 text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
-              title="Attach a file"
+              onClick={() => {
+                clearComposeDraft();
+                setRecipients([]);
+                setSubject('');
+                setBody('');
+                if (editorRef.current) editorRef.current.innerHTML = '';
+                success('Draft Cleared', 'Draft has been discarded');
+              }}
+              className="text-xs font-semibold text-slate-400 hover:text-red-500 transition-colors px-2.5 py-1 rounded-lg hover:bg-red-50 cursor-pointer"
+              title="Discard draft"
             >
-              <Paperclip className="w-4 h-4" />
+              Discard
             </button>
-            {attachment && (
-              <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-[#00a84e] text-white text-[9px] font-bold flex items-center justify-center pointer-events-none">
-                1
-              </span>
-            )}
-          </div>
+          )}
 
           {/* Clock icon for schedule modal */}
           <Popover open={sendLaterOpen} onOpenChange={setSendLaterOpen}>
@@ -372,7 +380,7 @@ export function ComposeView() {
                     type="datetime-local"
                     value={scheduledAt}
                     onChange={(e) => setScheduledAt(e.target.value)}
-                    className="h-10 text-xs bg-[#f4f6f8] border-none rounded-xl pr-9 text-slate-800 cursor-pointer"
+                    className="h-10 text-xs bg-[#f4f6f8] border-none rounded-xl pr-9 text-slate-800 cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:cursor-pointer"
                   />
                   <Calendar className="w-4 h-4 text-slate-400 absolute right-3 pointer-events-none" />
                 </div>
@@ -657,11 +665,20 @@ export function ComposeView() {
 
         {/* RICH TEXT EDITOR BOX */}
         <div className="rounded-2xl bg-[#f8fafc] border border-slate-200/80 p-3 2xs:p-4 space-y-3 mt-1">
-          {/* Toolbar */}
+          {/* Real Attachment Input (Hidden) */}
+          <input
+            type="file"
+            ref={attachmentInputRef}
+            className="hidden"
+            accept="image/*,.pdf,.doc,.docx,.csv,.txt"
+            onChange={handleAttachmentUpload}
+          />
+
+          {/* Formatting Toolbar (Includes Paperclip Attachment like Gmail) */}
           <div className="flex flex-wrap items-center gap-1 pb-3 border-b border-slate-200/60 text-slate-500">
             <button
               type="button"
-              onClick={() => document.execCommand?.('undo')}
+              onClick={() => executeCommand('undo')}
               className="p-1.5 rounded hover:bg-slate-200/60 hover:text-slate-900 cursor-pointer transition-colors"
               title="Undo"
             >
@@ -669,7 +686,7 @@ export function ComposeView() {
             </button>
             <button
               type="button"
-              onClick={() => document.execCommand?.('redo')}
+              onClick={() => executeCommand('redo')}
               className="p-1.5 rounded hover:bg-slate-200/60 hover:text-slate-900 cursor-pointer transition-colors"
               title="Redo"
             >
@@ -678,31 +695,31 @@ export function ComposeView() {
             <div className="h-4 w-px bg-slate-200 mx-1" />
             <button
               type="button"
-              onClick={() => insertFormatting('**', '**')}
-              className="p-1.5 rounded hover:bg-slate-200/60 hover:text-slate-900 cursor-pointer transition-colors"
+              onClick={() => executeCommand('bold')}
+              className="p-1.5 rounded hover:bg-slate-200/60 hover:text-slate-900 cursor-pointer transition-colors font-bold"
               title="Bold"
             >
               <Bold className="w-3.5 h-3.5" />
             </button>
             <button
               type="button"
-              onClick={() => insertFormatting('*', '*')}
-              className="p-1.5 rounded hover:bg-slate-200/60 hover:text-slate-900 cursor-pointer transition-colors"
+              onClick={() => executeCommand('italic')}
+              className="p-1.5 rounded hover:bg-slate-200/60 hover:text-slate-900 cursor-pointer transition-colors italic"
               title="Italic"
             >
               <Italic className="w-3.5 h-3.5" />
             </button>
             <button
               type="button"
-              onClick={() => insertFormatting('__', '__')}
-              className="p-1.5 rounded hover:bg-slate-200/60 hover:text-slate-900 cursor-pointer transition-colors"
+              onClick={() => executeCommand('underline')}
+              className="p-1.5 rounded hover:bg-slate-200/60 hover:text-slate-900 cursor-pointer transition-colors underline"
               title="Underline"
             >
               <Underline className="w-3.5 h-3.5" />
             </button>
             <button
               type="button"
-              onClick={() => insertFormatting('~~', '~~')}
+              onClick={() => executeCommand('strikeThrough')}
               className="p-1.5 rounded hover:bg-slate-200/60 hover:text-slate-900 cursor-pointer transition-colors"
               title="Strikethrough"
             >
@@ -711,7 +728,7 @@ export function ComposeView() {
             <div className="h-4 w-px bg-slate-200 mx-1" />
             <button
               type="button"
-              onClick={() => insertFormatting('\n- ')}
+              onClick={() => executeCommand('insertUnorderedList')}
               className="p-1.5 rounded hover:bg-slate-200/60 hover:text-slate-900 cursor-pointer transition-colors"
               title="Bullet List"
             >
@@ -719,7 +736,7 @@ export function ComposeView() {
             </button>
             <button
               type="button"
-              onClick={() => insertFormatting('\n1. ')}
+              onClick={() => executeCommand('insertOrderedList')}
               className="p-1.5 rounded hover:bg-slate-200/60 hover:text-slate-900 cursor-pointer transition-colors"
               title="Numbered List"
             >
@@ -727,16 +744,31 @@ export function ComposeView() {
             </button>
             <button
               type="button"
-              onClick={() => insertFormatting('\n> ')}
+              onClick={() => executeCommand('formatBlock', 'blockquote')}
               className="p-1.5 rounded hover:bg-slate-200/60 hover:text-slate-900 cursor-pointer transition-colors"
               title="Quote"
             >
               <Quote className="w-3.5 h-3.5" />
             </button>
             <div className="h-4 w-px bg-slate-200 mx-1" />
+            {/* Attachment Button positioned in toolbar like Gmail */}
             <button
               type="button"
-              onClick={() => insertFormatting('{{name}}')}
+              onClick={() => attachmentInputRef.current?.click()}
+              className="p-1.5 rounded hover:bg-slate-200/60 hover:text-slate-900 cursor-pointer transition-colors relative"
+              title="Attach a file"
+            >
+              <Paperclip className="w-3.5 h-3.5" />
+              {attachment && (
+                <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-[#00a84e] text-white text-[8px] font-bold flex items-center justify-center pointer-events-none">
+                  1
+                </span>
+              )}
+            </button>
+            <div className="h-4 w-px bg-slate-200 mx-1" />
+            <button
+              type="button"
+              onClick={() => insertTag('{{name}}')}
               className="px-2 py-1 rounded text-[11px] font-semibold bg-[#e8f5e9] text-[#00873d] hover:bg-[#d2ecd5] cursor-pointer transition-colors"
               title="Insert Lead Name placeholder"
             >
@@ -744,15 +776,14 @@ export function ComposeView() {
             </button>
           </div>
 
-          {/* Text Area */}
-          <textarea
-            ref={textareaRef}
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            placeholder="Type your message here... Use {{name}} to personalize per lead."
-            rows={9}
+          {/* Real Rich Text Editor (contentEditable) */}
+          <div
+            ref={editorRef}
+            contentEditable
+            onInput={handleEditorInput}
             spellCheck={false}
-            className="w-full bg-transparent border-none text-xs text-slate-800 placeholder:text-slate-400 outline-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 shadow-none resize-none leading-relaxed cursor-text selection:bg-[#e8f5e9] selection:text-[#00873d]"
+            data-placeholder="Type your message here... Use {{name}} to personalize per lead."
+            className="min-h-[180px] sm:min-h-[220px] w-full bg-transparent border-none text-xs sm:text-sm text-slate-800 outline-none focus:outline-none focus:ring-0 leading-relaxed cursor-text selection:bg-[#e8f5e9] selection:text-[#00873d] [&_strong]:font-bold [&_b]:font-bold [&_em]:italic [&_i]:italic [&_u]:underline [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_blockquote]:border-l-2 [&_blockquote]:border-[#00a84e] [&_blockquote]:pl-3 [&_blockquote]:italic [&:empty]:before:content-[attr(data-placeholder)] [&:empty]:before:text-slate-400 [&:empty]:before:pointer-events-none"
           />
         </div>
 

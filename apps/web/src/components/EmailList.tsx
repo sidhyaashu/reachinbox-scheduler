@@ -6,7 +6,7 @@ import { useSchedulerStore } from '../lib/store';
 import { EmailRecord } from '../lib/api-client';
 import { Skeleton } from './ui/skeleton';
 import { formatFigmaScheduleTime } from '../lib/utils';
-import { Clock, Star, Mail, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
+import { Clock, Star, Mail, CheckCircle2, AlertCircle, RefreshCw, ArchiveRestore } from 'lucide-react';
 
 export function EmailList() {
   const router = useRouter();
@@ -20,18 +20,15 @@ export function EmailList() {
     setFilterStatus,
     selectEmail,
     openCompose,
+    starredEmailIds,
+    toggleStar,
+    archivedEmailIds,
+    unarchiveEmail,
   } = useSchedulerStore();
 
-  const [starredIds, setStarredIds] = useState<Set<string>>(new Set());
-
-  const toggleStar = (e: React.MouseEvent, id: string) => {
+  const handleStarClick = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    setStarredIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+    toggleStar(id);
   };
 
   const getRecipientDisplayName = (email: EmailRecord): string => {
@@ -47,13 +44,21 @@ export function EmailList() {
   };
 
   // Determine current list and apply filter if active
-  let rawList = activeTab === 'scheduled' ? scheduledEmails : sentEmails;
+  let rawList: EmailRecord[] = [];
+  if (activeTab === 'archive') {
+    rawList = [...scheduledEmails, ...sentEmails].filter((e) => archivedEmailIds.includes(e.id));
+  } else if (activeTab === 'scheduled') {
+    rawList = scheduledEmails.filter((e) => !archivedEmailIds.includes(e.id));
+  } else {
+    rawList = sentEmails.filter((e) => !archivedEmailIds.includes(e.id));
+  }
+
   if (filterStatus === 'SENT') {
-    rawList = sentEmails;
+    rawList = sentEmails.filter((e) => !archivedEmailIds.includes(e.id));
   } else if (filterStatus === 'SCHEDULED' || filterStatus === 'PROCESSING') {
-    rawList = scheduledEmails;
+    rawList = scheduledEmails.filter((e) => !archivedEmailIds.includes(e.id));
   } else if (filterStatus === 'FAILED') {
-    rawList = [...scheduledEmails, ...sentEmails];
+    rawList = [...scheduledEmails, ...sentEmails].filter((e) => !archivedEmailIds.includes(e.id));
   }
 
   const baseList = searchResults !== null ? searchResults : rawList;
@@ -146,7 +151,7 @@ export function EmailList() {
   return (
     <div className="w-full divide-y divide-slate-100">
       {emails.map((email) => {
-        const isStarred = starredIds.has(email.id);
+        const isStarred = starredEmailIds.includes(email.id);
         const recipientName = getRecipientDisplayName(email);
         const isDeferred = email.status === 'DEFERRED';
         const isScheduled = email.status === 'SCHEDULED' || email.status === 'QUEUED';
@@ -211,9 +216,22 @@ export function EmailList() {
               </span>
               <div className="flex items-center gap-2">
                 {renderBadge()}
+                {activeTab === 'archive' && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      unarchiveEmail(email.id);
+                    }}
+                    className="p-1 text-slate-400 hover:text-[#00a84e] transition-colors cursor-pointer shrink-0"
+                    title="Restore to inbox"
+                  >
+                    <ArchiveRestore className="w-3.5 h-3.5" />
+                  </button>
+                )}
                 <button
                   type="button"
-                  onClick={(e) => toggleStar(e, email.id)}
+                  onClick={(e) => handleStarClick(e, email.id)}
                   className="p-1 text-slate-300 hover:text-amber-400 transition-colors cursor-pointer shrink-0"
                   title="Star email"
                 >
@@ -256,11 +274,24 @@ export function EmailList() {
               </div>
             </div>
 
-            {/* Desktop Star Action */}
-            <div className="hidden sm:flex items-center shrink-0">
+            {/* Desktop Actions */}
+            <div className="hidden sm:flex items-center gap-1 shrink-0">
+              {activeTab === 'archive' && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    unarchiveEmail(email.id);
+                  }}
+                  className="p-1 text-slate-400 hover:text-[#00a84e] transition-colors cursor-pointer"
+                  title="Restore to inbox"
+                >
+                  <ArchiveRestore className="w-4 h-4" />
+                </button>
+              )}
               <button
                 type="button"
-                onClick={(e) => toggleStar(e, email.id)}
+                onClick={(e) => handleStarClick(e, email.id)}
                 className="p-1 text-slate-300 hover:text-amber-400 transition-colors cursor-pointer"
                 title="Star email"
               >

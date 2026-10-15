@@ -70,6 +70,10 @@ function DashboardContent() {
       setActiveTab('sent');
     } else if (urlTab === 'scheduled' && activeTab !== 'scheduled') {
       setActiveTab('scheduled');
+    } else if (urlTab === 'archive' && activeTab !== 'archive') {
+      setActiveTab('archive');
+    } else if (urlTab === 'drafts' && activeTab !== 'drafts') {
+      setActiveTab('drafts');
     }
 
     // Sync Compose view
