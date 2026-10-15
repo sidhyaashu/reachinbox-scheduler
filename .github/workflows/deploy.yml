@@ -80,7 +80,9 @@ jobs:
             if [ ! -d "$APP_DIR/.git" ]; then
               echo "Initializing git repository in $APP_DIR..."
               git -C $APP_DIR init -b main
-              git -C $APP_DIR remote add origin https://github.com/${{ github.repository }}.git 2>/dev/null || git -C $APP_DIR remote set-url origin https://github.com/${{ github.repository }}.git
+              git -C $APP_DIR remote add origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git 2>/dev/null || git -C $APP_DIR remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+            else
+              git -C $APP_DIR remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
             fi
             echo "Fetching latest changes from origin main..."
             git -C $APP_DIR fetch origin main
