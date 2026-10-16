@@ -24,8 +24,10 @@ import {
   Send,
 } from 'lucide-react';
 import { Button } from './ui/button';
+import { useRouter } from 'next/navigation';
 
 export function IntegrationsView() {
+  const router = useRouter();
   const {
     user,
     sender,
@@ -57,13 +59,11 @@ export function IntegrationsView() {
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('google') === 'connected') {
       success('Google Gmail account connected successfully via OAuth2!');
-      const newUrl = window.location.pathname + '?tab=integrations';
-      window.history.replaceState(null, '', newUrl);
+      router.replace('/dashboard?tab=integrations', { scroll: false });
       loadDashboard();
     } else if (urlParams.get('slack') === 'connected') {
       success('Slack workspace connected successfully for rate-limit alerts!');
-      const newUrl = window.location.pathname + '?tab=integrations';
-      window.history.replaceState(null, '', newUrl);
+      router.replace('/dashboard?tab=integrations', { scroll: false });
       loadDashboard();
     }
   }, [success, loadDashboard]);
@@ -422,7 +422,7 @@ export function IntegrationsView() {
                       size="sm"
                       onClick={() => {
                         openCompose();
-                        window.history.pushState(null, '', '/dashboard?tab=integrations&compose=true');
+                        router.replace('/dashboard?tab=integrations&compose=true', { scroll: false });
                       }}
                       className="h-8.5 px-4 rounded-xl bg-[#00a84e] hover:bg-[#009243] text-white text-xs font-semibold gap-1.5 shadow-xs"
                     >

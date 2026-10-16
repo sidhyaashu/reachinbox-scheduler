@@ -252,7 +252,7 @@ function DashboardContent() {
     const params = new URLSearchParams(window.location.search);
     params.set('tab', targetTab);
     params.set('emailId', email.id);
-    window.history.pushState(null, '', `/dashboard?${params.toString()}`);
+    router.replace(`/dashboard?${params.toString()}`, { scroll: false });
   };
 
   const handleFilterChange = (status: 'ALL' | 'SCHEDULED' | 'PROCESSING' | 'SENT' | 'FAILED') => {

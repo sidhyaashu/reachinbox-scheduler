@@ -98,7 +98,7 @@ export function Sidebar() {
             openCompose();
             closeDetail();
             setMobileSidebarOpen(false);
-            window.history.pushState(null, '', `/dashboard?tab=${activeTab}&compose=true`);
+            router.replace(`/dashboard?tab=${activeTab}&compose=true`, { scroll: false });
           }}
           className="w-full h-10 rounded-full border-2 border-[#00a84e] bg-white text-[#00a84e] hover:bg-[#e8f5e9] font-semibold text-sm transition-all shadow-none cursor-pointer"
         >

@@ -202,10 +202,21 @@ export const useSchedulerStore = create<SchedulerState>((set, get) => ({
 
       const currentSelected = get().selectedEmail;
       let updatedSelected = currentSelected;
+      let shouldOpenDetail = get().detailOpen;
       if (currentSelected) {
         const found = [...scheduledItems, ...sentItems].find((e) => e.id === currentSelected.id);
         if (found) {
           updatedSelected = found;
+        }
+      } else if (typeof window !== 'undefined') {
+        const params = new URLSearchParams(window.location.search);
+        const urlEmailId = params.get('emailId');
+        if (urlEmailId) {
+          const found = [...scheduledItems, ...sentItems].find((e) => e.id === urlEmailId);
+          if (found) {
+            updatedSelected = found;
+            shouldOpenDetail = true;
+          }
         }
       }
 
@@ -216,6 +227,7 @@ export const useSchedulerStore = create<SchedulerState>((set, get) => ({
         scheduledEmails: scheduledItems,
         sentEmails: sentItems,
         selectedEmail: updatedSelected,
+        detailOpen: shouldOpenDetail,
         counts: {
           scheduled: activeScheduled.length,
           sent: activeSent.length,

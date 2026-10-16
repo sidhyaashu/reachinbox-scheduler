@@ -133,7 +133,7 @@ export function ComposeView() {
     if (editorRef.current) editorRef.current.innerHTML = '';
     success('Draft Discarded', 'Your draft has been removed');
     closeCompose();
-    window.history.pushState(null, '', `/dashboard?tab=${activeTab}`);
+    router.replace(`/dashboard?tab=${activeTab}`, { scroll: false });
   };
 
   const handleBack = () => {
@@ -150,7 +150,7 @@ export function ComposeView() {
       clearComposeDraft();
     }
     closeCompose();
-    window.history.pushState(null, '', `/dashboard?tab=${activeTab}`);
+    router.replace(`/dashboard?tab=${activeTab}`, { scroll: false });
   };
 
   // Keyboard shortcut: Escape to close Send Later popover or return to email list
@@ -320,7 +320,7 @@ export function ComposeView() {
       success('Outreach Scheduled', `Successfully queued ${res.scheduledCount} emails into BullMQ!`);
       clearComposeDraft();
       closeCompose();
-      window.history.pushState(null, '', '/dashboard?tab=scheduled');
+      router.replace('/dashboard?tab=scheduled', { scroll: false });
     } catch (err: any) {
       error('Scheduling Error', err.message);
     } finally {
@@ -543,7 +543,7 @@ export function ComposeView() {
                   onClick={() => {
                     closeCompose();
                     setActiveTab('integrations');
-                    window.history.pushState(null, '', '/dashboard?tab=integrations');
+                    router.replace('/dashboard?tab=integrations', { scroll: false });
                   }}
                   className="flex items-center gap-2 text-xs font-medium text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 cursor-pointer py-2"
                 >

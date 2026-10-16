@@ -56,7 +56,7 @@ export function EmailDetailView() {
 
   const handleBack = () => {
     closeDetail();
-    window.history.pushState(null, '', `/dashboard?tab=${activeTab}`);
+    router.replace(`/dashboard?tab=${activeTab}`, { scroll: false });
   };
 
   // Keyboard shortcut: Escape to go back

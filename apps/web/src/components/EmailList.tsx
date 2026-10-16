@@ -263,7 +263,7 @@ export function EmailList() {
               type="button"
               onClick={() => {
                 openCompose();
-                window.history.pushState(null, '', `/dashboard?tab=${activeTab}&compose=true`);
+                router.replace(`/dashboard?tab=${activeTab}&compose=true`, { scroll: false });
               }}
               className="text-xs font-semibold text-[#00a84e] bg-[#e8f5e9] hover:bg-[#d4edda] px-4 py-2 rounded-full transition-colors cursor-pointer"
             >
@@ -370,10 +370,10 @@ export function EmailList() {
             onClick={() => {
               if (activeTab === 'drafts' || email.id === 'draft-current') {
                 openCompose();
-                window.history.pushState(null, '', '/dashboard?tab=drafts&compose=true');
+                router.replace('/dashboard?tab=drafts&compose=true', { scroll: false });
               } else {
                 selectEmail(email);
-                window.history.pushState(null, '', `/dashboard?tab=${activeTab}&emailId=${email.id}`);
+                router.replace(`/dashboard?tab=${activeTab}&emailId=${email.id}`, { scroll: false });
               }
             }}
             className="group flex flex-col sm:flex-row sm:items-center justify-between py-3 2xs:py-3.5 px-2.5 2xs:px-3 hover:bg-slate-50/80 cursor-pointer transition-colors text-sm gap-2 sm:gap-4"
