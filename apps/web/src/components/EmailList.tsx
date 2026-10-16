@@ -579,31 +579,33 @@ export function EmailList() {
           </DialogHeader>
 
           {emailToDelete && (
-            <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 my-1 text-xs space-y-1.5">
-              <div className="flex items-center gap-2 text-slate-600">
+            <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 my-1 text-xs space-y-1.5 overflow-hidden">
+              <div className="flex items-center gap-2 text-slate-600 min-w-0">
                 <span className="font-semibold text-slate-700 w-20 shrink-0">Recipient:</span>
-                <span className="truncate text-slate-900 font-medium">{emailToDelete.recipient}</span>
+                <span className="truncate text-slate-900 font-medium min-w-0 flex-1">{emailToDelete.recipient}</span>
               </div>
-              <div className="flex items-center gap-2 text-slate-600">
+              <div className="flex items-center gap-2 text-slate-600 min-w-0">
                 <span className="font-semibold text-slate-700 w-20 shrink-0">Subject:</span>
-                <span className="truncate text-slate-900 font-medium">{emailToDelete.subject || 'Outreach campaign'}</span>
+                <span className="truncate text-slate-900 font-medium min-w-0 flex-1" title={emailToDelete.subject}>
+                  {emailToDelete.subject || 'Outreach campaign'}
+                </span>
               </div>
-              <div className="flex items-center gap-2 text-slate-600">
+              <div className="flex items-center gap-2 text-slate-600 min-w-0">
                 <span className="font-semibold text-slate-700 w-20 shrink-0">Status:</span>
                 <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-white border border-slate-200 text-slate-700">
                   {emailToDelete.status}
                 </span>
               </div>
               {emailToDelete.scheduledAt && (
-                <div className="flex items-center gap-2 text-slate-600">
+                <div className="flex items-center gap-2 text-slate-600 min-w-0">
                   <span className="font-semibold text-slate-700 w-20 shrink-0">Scheduled:</span>
-                  <span className="text-slate-700">{formatFigmaScheduleTime(emailToDelete.scheduledAt)}</span>
+                  <span className="text-slate-700 truncate min-w-0 flex-1">{formatFigmaScheduleTime(emailToDelete.scheduledAt)}</span>
                 </div>
               )}
             </div>
           )}
 
-          <DialogFooter className="gap-2 sm:gap-0 pt-2">
+          <DialogFooter className="gap-2 sm:gap-2 pt-3 border-t border-slate-100 mt-2">
             <button
               type="button"
               disabled={isDeleting}
