@@ -260,4 +260,24 @@ export class EmailRepository {
     const res = await query(sql, [id, userId]);
     return (res.rowCount ?? 0) > 0;
   }
+
+  /**
+   * Reconciles in-flight 'PROCESSING' emails left over from an unexpected
+   * server shutdown or crash, resetting them back to 'QUEUED' so they can be
+   * picked up and delivered upon restart.
+   */
+  async reconcileInFlightEmails(client?: PoolClient): Promise<number> {
+    const sql = `
+      UPDATE emails
+      SET status = 'QUEUED', updated_at = NOW()
+      WHERE status = 'PROCESSING';
+    `;
+    if (client) {
+      const res = await client.query(sql);
+      return res.rowCount || 0;
+    }
+    const res = await query(sql);
+    return res.rowCount || 0;
+  }
 }
+

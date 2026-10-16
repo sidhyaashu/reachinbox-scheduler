@@ -123,12 +123,14 @@ describe('OutboxDispatcher & Scheduler', () => {
   });
 
   it('reconciles in-flight and pending count correctly during startup', async () => {
+    mockEmailRepo.reconcileInFlightEmails = vi.fn().mockResolvedValue(2);
     mockOutboxRepo.reconcileInFlightEvents.mockResolvedValueOnce(3);
     mockOutboxRepo.getPendingCount.mockResolvedValueOnce(5);
 
-    const count = await runStartupReconciliation(mockOutboxRepo);
+    const count = await runStartupReconciliation(mockOutboxRepo, mockEmailRepo);
 
     expect(mockOutboxRepo.reconcileInFlightEvents).toHaveBeenCalledTimes(1);
+    expect(mockEmailRepo.reconcileInFlightEmails).toHaveBeenCalledTimes(1);
     expect(mockOutboxRepo.getPendingCount).toHaveBeenCalledTimes(1);
     expect(count).toBe(5);
   });
