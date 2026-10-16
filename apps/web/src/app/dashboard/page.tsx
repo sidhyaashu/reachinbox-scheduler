@@ -263,11 +263,11 @@ function DashboardContent() {
     } else {
       params.set('status', status);
     }
-    // Synchronize active tab with filter category
-    if ((status === 'SENT' || status === 'FAILED') && activeTab !== 'sent') {
+    // Synchronize active tab with filter category when in scheduled or sent
+    if ((status === 'SENT' || status === 'FAILED') && activeTab === 'scheduled') {
       setActiveTab('sent');
       params.set('tab', 'sent');
-    } else if ((status === 'SCHEDULED' || status === 'PROCESSING') && activeTab !== 'scheduled') {
+    } else if ((status === 'SCHEDULED' || status === 'PROCESSING') && activeTab === 'sent') {
       setActiveTab('scheduled');
       params.set('tab', 'scheduled');
     }

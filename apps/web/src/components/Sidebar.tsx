@@ -31,6 +31,7 @@ export function Sidebar() {
     logout,
     mobileSidebarOpen,
     setMobileSidebarOpen,
+    setFilterStatus,
   } = useSchedulerStore();
 
   // If user is not yet populated, fetch directly from OAuth profile session
@@ -116,6 +117,7 @@ export function Sidebar() {
             type="button"
             onClick={() => {
               setActiveTab('scheduled');
+              setFilterStatus('ALL');
               closeCompose();
               closeDetail();
               setMobileSidebarOpen(false);
@@ -145,6 +147,7 @@ export function Sidebar() {
             type="button"
             onClick={() => {
               setActiveTab('sent');
+              setFilterStatus('ALL');
               closeCompose();
               closeDetail();
               setMobileSidebarOpen(false);
@@ -174,6 +177,7 @@ export function Sidebar() {
             type="button"
             onClick={() => {
               setActiveTab('drafts');
+              setFilterStatus('ALL');
               closeCompose();
               closeDetail();
               setMobileSidebarOpen(false);
@@ -205,6 +209,7 @@ export function Sidebar() {
             type="button"
             onClick={() => {
               setActiveTab('archive');
+              setFilterStatus('ALL');
               closeCompose();
               closeDetail();
               setMobileSidebarOpen(false);
@@ -236,6 +241,7 @@ export function Sidebar() {
             type="button"
             onClick={() => {
               setActiveTab('trash');
+              setFilterStatus('ALL');
               closeCompose();
               closeDetail();
               setMobileSidebarOpen(false);
@@ -267,6 +273,7 @@ export function Sidebar() {
             type="button"
             onClick={() => {
               setActiveTab('integrations');
+              setFilterStatus('ALL');
               closeCompose();
               closeDetail();
               setMobileSidebarOpen(false);

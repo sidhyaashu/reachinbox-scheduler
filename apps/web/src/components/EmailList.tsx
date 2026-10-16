@@ -148,22 +148,6 @@ export function EmailList() {
     );
   }
 
-  if (activeTab !== 'drafts' && activeTab !== 'trash') {
-    if (filterStatus === 'SENT') {
-      rawList = sentEmails.filter(
-        (e) => !archivedEmailIds.includes(e.id) && !trashedEmailIds.includes(e.id)
-      );
-    } else if (filterStatus === 'SCHEDULED' || filterStatus === 'PROCESSING') {
-      rawList = scheduledEmails.filter(
-        (e) => !archivedEmailIds.includes(e.id) && !trashedEmailIds.includes(e.id)
-      );
-    } else if (filterStatus === 'FAILED') {
-      rawList = [...scheduledEmails, ...sentEmails].filter(
-        (e) => !archivedEmailIds.includes(e.id) && !trashedEmailIds.includes(e.id)
-      );
-    }
-  }
-
   const baseList = searchResults !== null ? searchResults : rawList;
 
   const filteredList =
