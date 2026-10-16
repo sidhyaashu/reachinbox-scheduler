@@ -250,7 +250,7 @@ export function EmailList() {
               type="button"
               onClick={() => {
                 setFilterStatus('ALL');
-                window.history.pushState(null, '', `/dashboard?tab=${activeTab}`);
+                router.replace(`/dashboard?tab=${activeTab}`, { scroll: false });
               }}
               className="text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 px-4 py-2 rounded-full transition-colors cursor-pointer"
             >

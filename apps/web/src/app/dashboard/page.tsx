@@ -92,115 +92,83 @@ function DashboardContent() {
     }
   }, [isLoading, user, router]);
 
-  // 3. Synchronize URL query parameters with active views & browser history (Back/Forward)
+  // 3. Synchronize URL query parameters with active views on mount & URL search param changes ONLY
   const urlTab = searchParams.get('tab');
   const urlCompose = searchParams.get('compose');
   const urlEmailId = searchParams.get('emailId');
   const urlStatus = searchParams.get('status');
 
   useEffect(() => {
-    // Sync tab
-    if (urlTab === 'sent' && activeTab !== 'sent') {
-      setActiveTab('sent');
-    } else if (urlTab === 'scheduled' && activeTab !== 'scheduled') {
-      setActiveTab('scheduled');
-    } else if (urlTab === 'archive' && activeTab !== 'archive') {
-      setActiveTab('archive');
-    } else if (urlTab === 'drafts' && activeTab !== 'drafts') {
-      setActiveTab('drafts');
-    } else if (urlTab === 'trash' && activeTab !== 'trash') {
-      setActiveTab('trash');
-    } else if (urlTab === 'integrations' && activeTab !== 'integrations') {
-      setActiveTab('integrations');
+    const state = useSchedulerStore.getState();
+
+    // 1. Sync tab
+    if (urlTab && ['scheduled', 'sent', 'archive', 'drafts', 'trash', 'integrations'].includes(urlTab)) {
+      if (state.activeTab !== urlTab) {
+        state.setActiveTab(urlTab as any);
+      }
     }
 
-    // Sync Compose view
+    // 2. Sync Compose view
     if (urlCompose === 'true') {
-      if (!composeOpen) openCompose();
+      if (!state.composeOpen) state.openCompose();
     } else {
-      if (composeOpen) closeCompose();
+      if (state.composeOpen) state.closeCompose();
     }
 
-    // Sync Email Detail view
+    // 3. Sync Email Detail view
     if (urlEmailId) {
-      const allEmails = [...scheduledEmails, ...sentEmails];
+      const allEmails = [...state.scheduledEmails, ...state.sentEmails];
       const match = allEmails.find((e) => e.id === urlEmailId);
-      if (match && (!selectedEmail || selectedEmail.id !== urlEmailId)) {
-        selectEmail(match);
+      if (match && (!state.selectedEmail || state.selectedEmail.id !== urlEmailId)) {
+        state.selectEmail(match);
       }
     } else {
-      if (detailOpen) closeDetail();
+      if (state.detailOpen) state.closeDetail();
     }
 
-    // Sync Filter status
+    // 4. Sync Filter status
     if (urlStatus && ['ALL', 'SCHEDULED', 'PROCESSING', 'SENT', 'FAILED'].includes(urlStatus)) {
-      if (filterStatus !== urlStatus) {
-        setFilterStatus(urlStatus as any);
+      if (state.filterStatus !== urlStatus) {
+        state.setFilterStatus(urlStatus as any);
       }
-    } else if (!urlStatus && filterStatus !== 'ALL') {
-      setFilterStatus('ALL');
+    } else if (!urlStatus && state.filterStatus !== 'ALL') {
+      state.setFilterStatus('ALL');
     }
-  }, [
-    urlTab,
-    urlCompose,
-    urlEmailId,
-    urlStatus,
-    activeTab,
-    composeOpen,
-    detailOpen,
-    selectedEmail,
-    scheduledEmails,
-    sentEmails,
-    filterStatus,
-    setActiveTab,
-    openCompose,
-    closeCompose,
-    selectEmail,
-    closeDetail,
-    setFilterStatus,
-  ]);
+  }, [urlTab, urlCompose, urlEmailId, urlStatus]);
 
   // 4. Handle browser Back/Forward buttons via popstate without triggering Next.js full-page reloads
   useEffect(() => {
     const handlePopState = () => {
+      const state = useSchedulerStore.getState();
       const params = new URLSearchParams(window.location.search);
       const tab = params.get('tab') as any;
-      if (tab && ['scheduled', 'sent', 'archive', 'drafts'].includes(tab)) {
-        setActiveTab(tab);
+      if (tab && ['scheduled', 'sent', 'archive', 'drafts', 'trash', 'integrations'].includes(tab)) {
+        state.setActiveTab(tab);
       }
       if (params.get('compose') === 'true') {
-        openCompose();
+        state.openCompose();
       } else {
-        closeCompose();
+        state.closeCompose();
       }
       const emailId = params.get('emailId');
       if (emailId) {
-        const allEmails = [...scheduledEmails, ...sentEmails];
+        const allEmails = [...state.scheduledEmails, ...state.sentEmails];
         const match = allEmails.find((e) => e.id === emailId);
-        if (match) selectEmail(match);
+        if (match) state.selectEmail(match);
       } else {
-        closeDetail();
+        state.closeDetail();
       }
       const status = params.get('status') as any;
       if (status && ['ALL', 'SCHEDULED', 'PROCESSING', 'SENT', 'FAILED'].includes(status)) {
-        setFilterStatus(status);
+        state.setFilterStatus(status);
       } else {
-        setFilterStatus('ALL');
+        state.setFilterStatus('ALL');
       }
     };
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [
-    scheduledEmails,
-    sentEmails,
-    setActiveTab,
-    openCompose,
-    closeCompose,
-    selectEmail,
-    closeDetail,
-    setFilterStatus,
-  ]);
+  }, []);
 
   // Debounced search with visual debouncing state
   useEffect(() => {
@@ -303,7 +271,7 @@ function DashboardContent() {
       setActiveTab('scheduled');
       params.set('tab', 'scheduled');
     }
-    window.history.pushState(null, '', `/dashboard?${params.toString()}`);
+    router.replace(`/dashboard?${params.toString()}`, { scroll: false });
   };
 
   // Full loading screen before auth or dashboard initial data is confirmed

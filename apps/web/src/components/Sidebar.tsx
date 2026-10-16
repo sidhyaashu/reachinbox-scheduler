@@ -119,7 +119,7 @@ export function Sidebar() {
               closeCompose();
               closeDetail();
               setMobileSidebarOpen(false);
-              window.history.pushState(null, '', '/dashboard?tab=scheduled');
+              router.replace('/dashboard?tab=scheduled', { scroll: false });
             }}
             className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm transition-all cursor-pointer ${
               activeTab === 'scheduled'
@@ -148,7 +148,7 @@ export function Sidebar() {
               closeCompose();
               closeDetail();
               setMobileSidebarOpen(false);
-              window.history.pushState(null, '', '/dashboard?tab=sent');
+              router.replace('/dashboard?tab=sent', { scroll: false });
             }}
             className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm transition-all cursor-pointer ${
               activeTab === 'sent'
@@ -177,7 +177,7 @@ export function Sidebar() {
               closeCompose();
               closeDetail();
               setMobileSidebarOpen(false);
-              window.history.pushState(null, '', '/dashboard?tab=drafts');
+              router.replace('/dashboard?tab=drafts', { scroll: false });
             }}
             className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm transition-all cursor-pointer ${
               activeTab === 'drafts'
@@ -208,7 +208,7 @@ export function Sidebar() {
               closeCompose();
               closeDetail();
               setMobileSidebarOpen(false);
-              window.history.pushState(null, '', '/dashboard?tab=archive');
+              router.replace('/dashboard?tab=archive', { scroll: false });
             }}
             className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm transition-all cursor-pointer ${
               activeTab === 'archive'
@@ -239,7 +239,7 @@ export function Sidebar() {
               closeCompose();
               closeDetail();
               setMobileSidebarOpen(false);
-              window.history.pushState(null, '', '/dashboard?tab=trash');
+              router.replace('/dashboard?tab=trash', { scroll: false });
             }}
             className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm transition-all cursor-pointer ${
               activeTab === 'trash'
@@ -270,7 +270,7 @@ export function Sidebar() {
               closeCompose();
               closeDetail();
               setMobileSidebarOpen(false);
-              window.history.pushState(null, '', '/dashboard?tab=integrations');
+              router.replace('/dashboard?tab=integrations', { scroll: false });
             }}
             className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm transition-all cursor-pointer ${
               activeTab === 'integrations'
