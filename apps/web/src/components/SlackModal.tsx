@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { X, Zap, Bell, CheckCircle2, AlertCircle, ExternalLink, Unlink } from 'lucide-react';
+import { X, Zap, Bell, CheckCircle2, AlertCircle, ExternalLink, Unlink, Loader2 } from 'lucide-react';
 import { SlackStatus, apiClient } from '../lib/api-client';
 
 interface SlackModalProps {
@@ -65,23 +65,25 @@ export function SlackModal({ isOpen, onClose, status, onRefresh }: SlackModalPro
     }
   };
 
+  const isConnected = Boolean(status?.connected);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/75 backdrop-blur-sm animate-in fade-in">
-      <div className="relative w-full max-w-lg bg-[#0e131f] border border-border/80 rounded-2xl shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-200">
+      <div className="relative w-full max-w-lg bg-white border border-slate-200/90 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-[#0b101d]">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-purple-600/20 text-purple-400 border border-purple-500/30 flex items-center justify-center">
-              <Zap className="w-4 h-4" />
+        <div className="flex items-center justify-between px-6 py-4.5 border-b border-slate-100 bg-white">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-[#4a154b]/5 text-[#4a154b] border border-purple-100 flex items-center justify-center shrink-0">
+              <Zap className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-semibold text-slate-100">Slack Integration</h2>
-              <p className="text-xs text-slate-400">Multi-tenant real-time rate limit alerts</p>
+              <h2 className="text-base sm:text-lg font-bold text-slate-900">Slack Integration</h2>
+              <p className="text-xs text-slate-500">Real-time alerts on rate-limit threshold breaches</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-surface transition-colors"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -91,57 +93,68 @@ export function SlackModal({ isOpen, onClose, status, onRefresh }: SlackModalPro
         <div className="p-6 space-y-5">
           {message && (
             <div
-              className={`p-3.5 rounded-xl text-xs flex items-center gap-2 border ${
+              className={`p-3.5 rounded-xl text-xs flex items-center gap-2.5 border ${
                 message.type === 'success'
-                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
-                  : 'bg-rose-500/10 border-rose-500/30 text-rose-300'
+                  ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                  : 'bg-rose-50 border-rose-200 text-rose-800'
               }`}
             >
               {message.type === 'success' ? (
-                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <CheckCircle2 className="w-4 h-4 text-[#00a84e] shrink-0" />
               ) : (
-                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
               )}
-              <span>{message.text}</span>
+              <span className="font-medium leading-relaxed">{message.text}</span>
             </div>
           )}
 
-          {status?.connected ? (
+          {isConnected ? (
             <div className="space-y-4">
-              <div className="p-4 rounded-xl bg-surface border border-emerald-500/20 space-y-2">
+              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 space-y-2.5 text-xs">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-slate-400">Connection Status</span>
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                  <span className="text-slate-500 font-medium">Connection Status</span>
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-[#00873d] border border-emerald-200">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#00a84e] animate-pulse"></span>
                     Connected
                   </span>
                 </div>
-                <div className="flex items-center justify-between text-xs pt-1 border-t border-border/50">
-                  <span className="text-slate-400">Workspace:</span>
-                  <span className="font-semibold text-slate-200">{status.teamName || 'Primary Workspace'}</span>
+                <div className="flex items-center justify-between pt-1 border-t border-slate-200/60">
+                  <span className="text-slate-500 font-medium">Workspace:</span>
+                  <span className="font-bold text-slate-900">{status?.teamName || 'Primary Workspace'}</span>
                 </div>
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-400">Alert Channel:</span>
-                  <span className="font-semibold text-brand-400">#{String(status.channelName || 'general').replace(/^#+/, '')}</span>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500 font-medium">Alert Channel:</span>
+                  <span className="font-mono text-purple-700 font-bold bg-purple-50 px-2 py-0.5 rounded-md border border-purple-200">
+                    #{String(status?.channelName || 'general').replace(/^#+/, '')}
+                  </span>
                 </div>
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 pt-1">
                 <button
                   type="button"
                   onClick={handleTestAlert}
                   disabled={testingAlert}
-                  className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-surface border border-border hover:border-brand-500/50 text-slate-200 text-xs font-semibold transition-all hover:bg-surface-hover disabled:opacity-50"
+                  className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-[#4a154b] hover:bg-[#5c1b5d] text-white text-xs font-semibold transition-all shadow-xs disabled:opacity-50 cursor-pointer"
                 >
-                  <Bell className="w-3.5 h-3.5 text-brand-400" />
-                  <span>{testingAlert ? 'Sending Alert...' : 'Send Test Alert'}</span>
+                  {testingAlert ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Sending Alert...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Bell className="w-3.5 h-3.5" />
+                      <span>Send Test Alert</span>
+                    </>
+                  )}
                 </button>
 
                 <button
                   type="button"
                   onClick={handleDisconnect}
                   disabled={disconnecting}
-                  className="flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 hover:bg-rose-500/20 text-xs font-semibold transition-all disabled:opacity-50"
+                  className="flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl bg-white border border-rose-200 text-rose-600 hover:bg-rose-50 text-xs font-semibold transition-all disabled:opacity-50 cursor-pointer"
                 >
                   <Unlink className="w-3.5 h-3.5" />
                   <span>{disconnecting ? 'Disconnecting...' : 'Disconnect'}</span>
@@ -150,14 +163,15 @@ export function SlackModal({ isOpen, onClose, status, onRefresh }: SlackModalPro
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="flex items-center p-1 bg-surface rounded-xl border border-border">
+              {/* Mode Switcher */}
+              <div className="flex items-center p-1 bg-slate-100 rounded-xl border border-slate-200/80">
                 <button
                   type="button"
                   onClick={() => setMode('oauth')}
-                  className={`flex-1 py-1.5 px-3 text-xs font-medium rounded-lg transition-all ${
+                  className={`flex-1 py-1.5 px-3 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
                     mode === 'oauth'
-                      ? 'bg-purple-600 text-white shadow-sm'
-                      : 'text-slate-400 hover:text-slate-200'
+                      ? 'bg-white text-slate-900 shadow-xs'
+                      : 'text-slate-500 hover:text-slate-800'
                   }`}
                 >
                   ⚡ Slack OAuth (1-Click)
@@ -165,10 +179,10 @@ export function SlackModal({ isOpen, onClose, status, onRefresh }: SlackModalPro
                 <button
                   type="button"
                   onClick={() => setMode('webhook')}
-                  className={`flex-1 py-1.5 px-3 text-xs font-medium rounded-lg transition-all ${
+                  className={`flex-1 py-1.5 px-3 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
                     mode === 'webhook'
-                      ? 'bg-purple-600 text-white shadow-sm'
-                      : 'text-slate-400 hover:text-slate-200'
+                      ? 'bg-white text-slate-900 shadow-xs'
+                      : 'text-slate-500 hover:text-slate-800'
                   }`}
                 >
                   🔗 Custom Webhook URL
@@ -176,40 +190,40 @@ export function SlackModal({ isOpen, onClose, status, onRefresh }: SlackModalPro
               </div>
 
               {mode === 'oauth' ? (
-                <div className="space-y-3">
-                  <p className="text-xs text-slate-300">
+                <div className="space-y-3.5">
+                  <p className="text-xs text-slate-600 leading-relaxed">
                     Authenticate your Slack workspace via OAuth2 to automatically deliver rate-limit alerts directly to your team channel.
                   </p>
 
-                  <div className="p-3.5 rounded-xl bg-surface border border-border text-xs text-slate-400 space-y-1.5">
-                    <div className="font-semibold text-slate-200">How it works:</div>
-                    <p>• Zero jobs dropped during 1,000+ email bursts.</p>
-                    <p>• Automated notifications dispatched the moment hourly limits trigger deferrals.</p>
+                  <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 text-xs text-slate-600 space-y-1.5">
+                    <div className="font-semibold text-slate-800">How it works:</div>
+                    <p className="text-slate-500">• Zero jobs dropped during 1,000+ email bursts.</p>
+                    <p className="text-slate-500">• Automated notifications dispatched the moment hourly limits trigger deferrals.</p>
                   </div>
 
                   <a
                     href="/integrations/slack/authorize"
-                    className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-[#4a154b] hover:bg-[#5c1b5d] text-white text-xs font-semibold transition-all shadow-lg"
+                    className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-[#4a154b] hover:bg-[#5c1b5d] text-white text-xs font-semibold transition-all shadow-sm"
                   >
                     <Zap className="w-4 h-4" />
                     <span>Connect with Slack OAuth</span>
                     <ExternalLink className="w-3.5 h-3.5 ml-1" />
                   </a>
 
-                  <p className="text-[11px] text-slate-500 leading-relaxed text-center">
-                    Note: To connect external workspaces, ensure <em>Activate Public Distribution</em> is turned on in your Slack App Dashboard.
+                  <p className="text-[11px] text-slate-400 leading-relaxed text-center">
+                    Note: Works with any workspace where Public Distribution is activated.
                   </p>
                 </div>
               ) : (
-                <form onSubmit={handleConnectWebhook} className="space-y-3">
-                  <p className="text-xs text-slate-300">
+                <form onSubmit={handleConnectWebhook} className="space-y-3.5">
+                  <p className="text-xs text-slate-600 leading-relaxed">
                     Paste an Incoming Webhook URL from any Slack workspace or channel. Perfect for workspaces with restricted OAuth app permissions.
                   </p>
 
-                  <div className="space-y-2">
+                  <div className="space-y-2.5">
                     <div>
-                      <label className="block text-[11px] font-medium text-slate-300 mb-1">
-                        Slack Webhook URL <span className="text-rose-400">*</span>
+                      <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                        Slack Webhook URL <span className="text-rose-500">*</span>
                       </label>
                       <input
                         type="url"
@@ -217,12 +231,12 @@ export function SlackModal({ isOpen, onClose, status, onRefresh }: SlackModalPro
                         value={webhookUrl}
                         onChange={(e) => setWebhookUrl(e.target.value)}
                         placeholder="https://hooks.slack.com/services/T.../B.../..."
-                        className="w-full px-3 py-2 text-xs rounded-xl bg-surface border border-border text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-brand-500"
+                        className="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 border border-slate-200 text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-hidden focus:border-[#00a84e] transition-all"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-[11px] font-medium text-slate-300 mb-1">
+                      <label className="block text-[11px] font-semibold text-slate-700 mb-1">
                         Channel Name (Optional)
                       </label>
                       <input
@@ -230,7 +244,7 @@ export function SlackModal({ isOpen, onClose, status, onRefresh }: SlackModalPro
                         value={channelName}
                         onChange={(e) => setChannelName(e.target.value)}
                         placeholder="#rate-limit-alerts"
-                        className="w-full px-3 py-2 text-xs rounded-xl bg-surface border border-border text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-brand-500"
+                        className="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 border border-slate-200 text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-hidden focus:border-[#00a84e] transition-all"
                       />
                     </div>
                   </div>
@@ -238,10 +252,19 @@ export function SlackModal({ isOpen, onClose, status, onRefresh }: SlackModalPro
                   <button
                     type="submit"
                     disabled={connectingWebhook || !webhookUrl.trim()}
-                    className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold transition-all shadow-lg disabled:opacity-50"
+                    className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-[#00a84e] hover:bg-[#009243] text-white text-xs font-semibold transition-all shadow-sm disabled:opacity-50 cursor-pointer"
                   >
-                    <Zap className="w-4 h-4" />
-                    <span>{connectingWebhook ? 'Verifying Webhook...' : 'Connect & Verify Webhook'}</span>
+                    {connectingWebhook ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Verifying Webhook...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Zap className="w-4 h-4" />
+                        <span>Connect &amp; Verify Webhook</span>
+                      </>
+                    )}
                   </button>
                 </form>
               )}

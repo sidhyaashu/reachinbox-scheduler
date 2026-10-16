@@ -864,7 +864,7 @@ export function IntegrationsView() {
         isOpen={slackModalOpen}
         onClose={() => setSlackModalOpen(false)}
         status={
-          slackIntegration
+          slackIntegration?.connected
             ? {
                 connected: true,
                 teamName: slackIntegration.teamName,
