@@ -24,6 +24,7 @@ import {
   Send,
 } from 'lucide-react';
 import { Button } from './ui/button';
+import { ConfirmModal } from './ui/confirm-modal';
 import { useRouter } from 'next/navigation';
 
 export function IntegrationsView() {
@@ -43,6 +44,20 @@ export function IntegrationsView() {
   const [searchFilter, setSearchFilter] = useState('');
   const [activeCategory, setActiveCategory] = useState<'all' | 'email' | 'alerts' | 'infra'>('all');
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    type: 'google' | 'slack' | null;
+    title: string;
+    description: string;
+    confirmText: string;
+    notice?: string;
+  }>({
+    isOpen: false,
+    type: null,
+    title: '',
+    description: '',
+    confirmText: '',
+  });
 
   // Clean sender name (removes helper suffix)
   const rawSenderName = sender?.name || user?.name || '';
@@ -92,35 +107,53 @@ export function IntegrationsView() {
     }
   };
 
-  const handleDisconnectSlack = async () => {
-    if (!confirm('Are you sure you want to disconnect Slack? Rate-limit breach alerts will no longer be delivered to your channel.')) {
-      return;
-    }
-    setDisconnectingSlack(true);
-    try {
-      await apiClient.integrations.disconnectSlack();
-      await loadDashboard();
-      success('Slack integration disconnected');
-    } catch (err: any) {
-      error(err.message || 'Failed to disconnect Slack');
-    } finally {
-      setDisconnectingSlack(false);
-    }
+  const promptDisconnectSlack = () => {
+    setConfirmModal({
+      isOpen: true,
+      type: 'slack',
+      title: 'Disconnect Slack Notification Service?',
+      description: 'Are you sure you want to disconnect Slack? Rate-limit breach alerts (1,000+ job spikes) will no longer be broadcasted to your channel.',
+      confirmText: 'Disconnect Slack',
+      notice: 'Your team channel will stop receiving real-time webhook notices when sending limits are reached.',
+    });
   };
 
-  const handleDisconnectGoogle = async () => {
-    if (!confirm('Are you sure you want to disconnect your Google account? ReachInbox will fall back to sandboxed SMTP dispatch.')) {
-      return;
-    }
-    setDisconnectingGoogle(true);
-    try {
-      await apiClient.integrations.disconnectGoogle();
-      await loadDashboard();
-      success('Google account disconnected successfully');
-    } catch (err: any) {
-      error(err.message || 'Failed to disconnect Google account');
-    } finally {
-      setDisconnectingGoogle(false);
+  const promptDisconnectGoogle = () => {
+    setConfirmModal({
+      isOpen: true,
+      type: 'google',
+      title: 'Disconnect Google Gmail Service?',
+      description: 'Are you sure you want to disconnect your Google account? ReachInbox will fall back to sandboxed SMTP dispatch.',
+      confirmText: 'Disconnect Account',
+      notice: 'Campaigns will route through sandboxed Ethereal SMTP instead of your personal or workspace Gmail mailbox.',
+    });
+  };
+
+  const handleExecuteConfirm = async () => {
+    if (confirmModal.type === 'google') {
+      setDisconnectingGoogle(true);
+      try {
+        await apiClient.integrations.disconnectGoogle();
+        await loadDashboard();
+        success('Google account disconnected successfully');
+        setConfirmModal((prev) => ({ ...prev, isOpen: false, type: null }));
+      } catch (err: any) {
+        error(err.message || 'Failed to disconnect Google account');
+      } finally {
+        setDisconnectingGoogle(false);
+      }
+    } else if (confirmModal.type === 'slack') {
+      setDisconnectingSlack(true);
+      try {
+        await apiClient.integrations.disconnectSlack();
+        await loadDashboard();
+        success('Slack integration disconnected');
+        setConfirmModal((prev) => ({ ...prev, isOpen: false, type: null }));
+      } catch (err: any) {
+        error(err.message || 'Failed to disconnect Slack');
+      } finally {
+        setDisconnectingSlack(false);
+      }
     }
   };
 
@@ -410,7 +443,7 @@ export function IntegrationsView() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={handleDisconnectGoogle}
+                      onClick={promptDisconnectGoogle}
                       disabled={disconnectingGoogle}
                       className="h-8.5 px-3 rounded-xl border-rose-200 text-rose-600 hover:bg-rose-50 text-xs font-semibold gap-1.5"
                     >
@@ -538,7 +571,7 @@ export function IntegrationsView() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={handleDisconnectSlack}
+                      onClick={promptDisconnectSlack}
                       disabled={disconnectingSlack}
                       className="h-8.5 px-3 rounded-xl border-rose-200 text-rose-600 hover:bg-rose-50 text-xs font-semibold gap-1.5"
                     >
@@ -686,6 +719,26 @@ export function IntegrationsView() {
             </div>
           )}
       </div>
+
+      {/* Cross-Platform Shadcn UI Confirmation Modal */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal((prev) => ({ ...prev, isOpen: false, type: null }))}
+        onConfirm={handleExecuteConfirm}
+        title={confirmModal.title}
+        description={confirmModal.description}
+        confirmText={confirmModal.confirmText}
+        cancelText="Cancel"
+        variant="danger"
+        isLoading={disconnectingGoogle || disconnectingSlack}
+      >
+        {confirmModal.notice && (
+          <div className="p-3.5 rounded-xl bg-amber-50/70 border border-amber-200/80 text-xs text-amber-900 leading-relaxed flex items-start gap-2">
+            <span className="font-bold text-amber-800 shrink-0">Note:</span>
+            <span>{confirmModal.notice}</span>
+          </div>
+        )}
+      </ConfirmModal>
     </div>
   );
 }

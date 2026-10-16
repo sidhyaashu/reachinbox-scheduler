@@ -28,12 +28,15 @@ import {
   DialogDescription,
 } from './ui/dialog';
 import { useToast } from './Toast';
+import { ConfirmModal } from './ui/confirm-modal';
 
 export function EmailList() {
   const router = useRouter();
   const { success, error } = useToast();
   const [emailToDelete, setEmailToDelete] = useState<EmailRecord | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [emptyTrashConfirmOpen, setEmptyTrashConfirmOpen] = useState(false);
+  const [isEmptyingTrash, setIsEmptyingTrash] = useState(false);
 
   const {
     user,
@@ -281,10 +284,7 @@ export function EmailList() {
           </div>
           <button
             type="button"
-            onClick={async () => {
-              await emptyTrash();
-              success('Trash Emptied', 'All items in trash permanently deleted');
-            }}
+            onClick={() => setEmptyTrashConfirmOpen(true)}
             className="font-bold text-red-600 hover:text-red-700 hover:underline px-2 py-0.5 cursor-pointer shrink-0"
           >
             Empty Trash now
@@ -615,6 +615,30 @@ export function EmailList() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Empty Trash Confirmation Dialog */}
+      <ConfirmModal
+        isOpen={emptyTrashConfirmOpen}
+        onClose={() => setEmptyTrashConfirmOpen(false)}
+        onConfirm={async () => {
+          setIsEmptyingTrash(true);
+          try {
+            await emptyTrash();
+            success('Trash Emptied', 'All items in trash permanently deleted');
+            setEmptyTrashConfirmOpen(false);
+          } catch (err: any) {
+            error('Failed to empty trash', err.message);
+          } finally {
+            setIsEmptyingTrash(false);
+          }
+        }}
+        title="Empty Trash Folder?"
+        description={`Are you sure you want to permanently delete all ${emails.length} messages from Trash? This action cannot be undone.`}
+        confirmText="Empty Trash"
+        cancelText="Cancel"
+        variant="danger"
+        isLoading={isEmptyingTrash}
+      />
     </div>
   );
 }
