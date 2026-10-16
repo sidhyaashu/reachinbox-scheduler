@@ -18,6 +18,9 @@ import {
   Mail,
   UserCheck,
   RefreshCw,
+  Paperclip,
+  FileText,
+  Download,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { formatFigmaScheduleTime, formatDateTime, parseRichEmailContent } from '../lib/utils';
@@ -267,6 +270,72 @@ export function EmailDetailView() {
             <p className="text-slate-400 italic text-xs">No email message content provided.</p>
           )}
         </div>
+
+        {/* Real Attachments Display */}
+        {selectedEmail.attachments && selectedEmail.attachments.length > 0 && (
+          <div className="pt-2 space-y-2.5">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700">
+              <Paperclip className="w-3.5 h-3.5 text-[#00a84e]" />
+              <span>Attachments ({selectedEmail.attachments.length})</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+              {selectedEmail.attachments.map((att, idx) => {
+                const isImage =
+                  att.contentType?.startsWith('image/') ||
+                  /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(att.filename);
+                const fileDataUrl = att.content
+                  ? `data:${att.contentType || (isImage ? 'image/png' : 'application/octet-stream')};base64,${att.content}`
+                  : '#';
+                const formattedSize = att.size
+                  ? att.size > 1024 * 1024
+                    ? `${(att.size / (1024 * 1024)).toFixed(1)} MB`
+                    : `${(att.size / 1024).toFixed(1)} KB`
+                  : null;
+
+                return (
+                  <div
+                    key={idx}
+                    className="flex flex-col rounded-2xl border border-slate-200/90 overflow-hidden bg-white shadow-xs hover:shadow-md transition-shadow group"
+                  >
+                    {isImage && att.content ? (
+                      <div className="h-32 w-full bg-slate-100 overflow-hidden relative">
+                        <img
+                          src={fileDataUrl}
+                          alt={att.filename}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                        />
+                      </div>
+                    ) : (
+                      <div className="h-24 w-full bg-slate-50 flex items-center justify-center text-slate-400">
+                        <FileText className="w-8 h-8 text-slate-400" />
+                      </div>
+                    )}
+                    <div className="p-3 flex items-center justify-between gap-2 border-t border-slate-100 bg-white">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-bold text-slate-800 truncate" title={att.filename}>
+                          {att.filename}
+                        </p>
+                        {formattedSize && (
+                          <p className="text-[10px] text-slate-400 mt-0.5">{formattedSize}</p>
+                        )}
+                      </div>
+                      <a
+                        href={fileDataUrl}
+                        download={att.filename}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="p-1.5 rounded-lg bg-slate-100 hover:bg-[#e8f5e9] text-slate-600 hover:text-[#00873d] transition-colors shrink-0 cursor-pointer"
+                        title={`Download ${att.filename}`}
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                      </a>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Metadata Details */}
         <div className="mt-4 pt-4 border-t border-slate-100 grid grid-cols-1 2xs:grid-cols-2 sm:grid-cols-3 gap-3 text-xs">

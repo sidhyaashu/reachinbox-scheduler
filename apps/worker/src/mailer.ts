@@ -11,6 +11,12 @@ export interface SendEmailOptions {
   subject: string;
   body: string;
   sender?: Sender | null;
+  attachments?: {
+    filename: string;
+    contentType?: string;
+    content: string; // base64 string
+    size?: number;
+  }[];
 }
 
 export interface SendEmailResult {
@@ -22,6 +28,15 @@ export class MailerService {
   constructor(
     private readonly senderRepo: SenderRepository = new SenderRepository()
   ) {}
+
+  private formatNodemailerAttachments(attachments?: SendEmailOptions['attachments']) {
+    if (!attachments || attachments.length === 0) return undefined;
+    return attachments.map((att) => ({
+      filename: att.filename,
+      content: Buffer.from(att.content, 'base64'),
+      contentType: att.contentType,
+    }));
+  }
 
   /**
    * Obtains a valid Google OAuth2 access token using the sender's refresh token.
@@ -98,6 +113,7 @@ export class MailerService {
       subject: options.subject,
       text: isHtml ? undefined : options.body,
       html: isHtml ? options.body : undefined,
+      attachments: this.formatNodemailerAttachments(options.attachments),
     });
 
     if (Buffer.isBuffer(info.message)) {
@@ -247,6 +263,7 @@ export class MailerService {
       html: isHtml
         ? `<div style="padding: 10px; margin-bottom: 12px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; font-size: 13px; color: #92400e;"><strong>${notice}</strong></div>${options.body}`
         : undefined,
+      attachments: this.formatNodemailerAttachments(options.attachments),
     });
 
     const previewUrl = nodemailer.getTestMessageUrl(info);
@@ -291,6 +308,7 @@ export class MailerService {
       subject: options.subject,
       text: isHtml ? undefined : options.body,
       html: isHtml ? options.body : undefined,
+      attachments: this.formatNodemailerAttachments(options.attachments),
     });
 
     const previewUrl = nodemailer.getTestMessageUrl(info);

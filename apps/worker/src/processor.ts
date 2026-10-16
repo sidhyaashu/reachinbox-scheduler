@@ -81,12 +81,13 @@ export class EmailProcessor {
       // 5. Enforce minimum inter-send spacing delay across workers
       await this.rateLimiter.enforceInterSendDelay(data.senderId, minDelaySeconds);
 
-      // 6. Deliver email via Ethereal SMTP
+      // 6. Deliver email via Ethereal SMTP / Gmail API
       const sendResult = await this.mailerService.sendMail({
         to: data.recipient,
         subject: data.subject,
         body: email.body || data.subject,
         sender,
+        attachments: (email.attachments as any) || (data.attachments as any) || undefined,
       });
 
       // 7. Transition to SENT in DB with preview URL

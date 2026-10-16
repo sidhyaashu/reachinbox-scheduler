@@ -72,6 +72,7 @@ export class EmailService {
       body: input.body,
       scheduledAt: input.scheduledAt,
       idempotencyKey: input.idempotencyKey || null,
+      attachments: (input as any).attachments || null,
     });
 
     // 4. Asynchronously index into Elasticsearch
@@ -125,6 +126,7 @@ export class EmailService {
         body: personalizedBody,
         scheduledAt,
         idempotencyKey: null,
+        attachments: (input as any).attachments || null,
       };
     });
 

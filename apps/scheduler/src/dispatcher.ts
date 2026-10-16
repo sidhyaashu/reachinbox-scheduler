@@ -106,6 +106,7 @@ export class OutboxDispatcher {
         scheduledAt: payload.scheduledAt,
         attemptNumber: 0,
         enqueuedAt: new Date().toISOString(),
+        attachments: (payload as any).attachments,
       };
 
       // 1. Enqueue to BullMQ with deterministic jobId

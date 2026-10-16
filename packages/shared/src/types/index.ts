@@ -50,6 +50,13 @@ export interface Sender {
   updatedAt: Date;
 }
 
+export interface EmailAttachment {
+  filename: string;
+  contentType?: string;
+  content: string; // base64 encoded
+  size?: number;
+}
+
 export interface EmailRecord {
   id: string;
   userId: string;
@@ -64,6 +71,7 @@ export interface EmailRecord {
   idempotencyKey?: string | null;
   attempts: number;
   lastError?: string | null;
+  attachments?: EmailAttachment[] | null;
   createdAt: Date;
   updatedAt: Date;
 }

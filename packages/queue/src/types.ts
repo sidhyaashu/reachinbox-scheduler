@@ -8,6 +8,7 @@ export interface EmailJobData {
   scheduledAt: string;
   attemptNumber?: number;
   enqueuedAt?: string;
+  attachments?: any[];
 }
 
 export const EMAIL_QUEUE_NAME = 'reachinbox-email-queue';

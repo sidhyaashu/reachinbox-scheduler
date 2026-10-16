@@ -58,6 +58,9 @@ interface AttachmentFile {
   name: string;
   sizeText: string;
   previewUrl?: string | null;
+  base64?: string;
+  contentType?: string;
+  size?: number;
 }
 
 export function ComposeView() {
@@ -249,6 +252,12 @@ export function ComposeView() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    if (file.size > 10 * 1024 * 1024) {
+      error('File Too Large', 'Attachments must be under 10MB.');
+      e.target.value = '';
+      return;
+    }
+
     const sizeInKb = (file.size / 1024).toFixed(1);
     const sizeText = file.size > 1024 * 1024 ? `${(file.size / (1024 * 1024)).toFixed(1)} MB` : `${sizeInKb} KB`;
 
@@ -257,13 +266,28 @@ export function ComposeView() {
       previewUrl = URL.createObjectURL(file);
     }
 
-    setAttachment({
-      name: file.name,
-      sizeText,
-      previewUrl,
-    });
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const dataUrl = event.target?.result as string;
+      const commaIdx = dataUrl.indexOf(',');
+      const base64 = commaIdx !== -1 ? dataUrl.slice(commaIdx + 1) : dataUrl;
+      const mime = file.type || (commaIdx !== -1 ? dataUrl.slice(5, commaIdx).split(';')[0] : 'application/octet-stream');
 
-    success('File Attached', `${file.name} attached`);
+      setAttachment({
+        name: file.name,
+        sizeText,
+        previewUrl,
+        base64,
+        contentType: mime,
+        size: file.size,
+      });
+
+      success('File Attached', `${file.name} (${sizeText}) attached`);
+    };
+    reader.onerror = () => {
+      error('Attachment Error', `Could not read ${file.name}`);
+    };
+    reader.readAsDataURL(file);
     e.target.value = '';
   };
 
@@ -317,6 +341,13 @@ export function ComposeView() {
 
     setIsSubmitting(true);
     try {
+      const attachments = attachment && attachment.base64 ? [{
+        filename: attachment.name,
+        contentType: attachment.contentType,
+        content: attachment.base64,
+        size: attachment.size,
+      }] : undefined;
+
       const res = await scheduleCampaign({
         recipients,
         subject,
@@ -325,6 +356,7 @@ export function ComposeView() {
         delaySecondsBetweenSends: delaySeconds,
         hourlyLimit,
         senderId: sender?.id,
+        attachments,
       });
 
       success('Outreach Scheduled', `Successfully queued ${res.scheduledCount} emails into BullMQ!`);

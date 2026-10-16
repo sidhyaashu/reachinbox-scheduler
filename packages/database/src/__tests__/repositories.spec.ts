@@ -91,6 +91,7 @@ describe('EmailRepository Transactional Guarantees', () => {
       '<p>Interested in your stack?</p>',
       scheduledDate,
       'idemp-1234',
+      null,
     ]);
 
     // Verify second query was INSERT INTO outbox_events with payload

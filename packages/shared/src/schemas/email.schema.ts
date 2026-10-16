@@ -1,6 +1,15 @@
 import { z } from 'zod';
 import { EmailStatus } from '../types/index.js';
 
+export const EmailAttachmentSchema = z.object({
+  filename: z.string().min(1).max(255),
+  contentType: z.string().max(128).optional(),
+  content: z.string().min(1), // base64 encoded string
+  size: z.number().int().nonnegative().optional(),
+});
+
+export type EmailAttachmentInput = z.infer<typeof EmailAttachmentSchema>;
+
 export const ScheduleEmailSchema = z.object({
   senderId: z.string().uuid({ message: 'Valid senderId (UUID) is required' }),
   recipient: z.string().email({ message: 'Valid recipient email address is required' }).max(255),
@@ -12,6 +21,7 @@ export const ScheduleEmailSchema = z.object({
     .transform((val) => new Date(val))
     .refine((date) => !isNaN(date.getTime()), { message: 'Invalid scheduledAt date' }),
   idempotencyKey: z.string().min(8).max(128).optional(),
+  attachments: z.array(EmailAttachmentSchema).max(10).optional(),
 });
 
 export type ScheduleEmailInput = z.input<typeof ScheduleEmailSchema>;
@@ -43,6 +53,7 @@ export const BatchScheduleEmailSchema = z.object({
     .transform((val) => new Date(val)),
   delayBetweenEmailsSeconds: z.number().int().min(0).max(3600).default(2),
   hourlyLimit: z.number().int().min(1).max(5000).default(200),
+  attachments: z.array(EmailAttachmentSchema).max(10).optional(),
 });
 
 export type BatchScheduleEmailInput = z.input<typeof BatchScheduleEmailSchema>;

@@ -10,6 +10,7 @@ export interface CreateEmailParams {
   body: string;
   scheduledAt: Date;
   idempotencyKey?: string | null;
+  attachments?: any[] | null;
 }
 
 export class EmailRepository {
@@ -25,14 +26,14 @@ export class EmailRepository {
       const emailInsertSql = `
         INSERT INTO emails (
           user_id, sender_id, recipient, subject, body,
-          status, scheduled_at, idempotency_key, attempts
+          status, scheduled_at, idempotency_key, attempts, attachments
         )
-        VALUES ($1, $2, $3, $4, $5, 'SCHEDULED', $6, $7, 0)
+        VALUES ($1, $2, $3, $4, $5, 'SCHEDULED', $6, $7, 0, $8)
         RETURNING
           id, user_id AS "userId", sender_id AS "senderId", recipient, subject,
           body, status, scheduled_at AS "scheduledAt", sent_at AS "sentAt",
           ethereal_message_url AS "etherealMessageUrl", idempotency_key AS "idempotencyKey",
-          attempts, last_error AS "lastError", created_at AS "createdAt", updated_at AS "updatedAt";
+          attempts, last_error AS "lastError", attachments, created_at AS "createdAt", updated_at AS "updatedAt";
       `;
 
       const emailResult = await client.query<EmailRecord>(emailInsertSql, [
@@ -43,6 +44,7 @@ export class EmailRepository {
         params.body,
         params.scheduledAt,
         params.idempotencyKey || null,
+        params.attachments ? JSON.stringify(params.attachments) : null,
       ]);
 
       const email = emailResult.rows[0];
@@ -65,6 +67,7 @@ export class EmailRepository {
         recipient: email.recipient,
         subject: email.subject,
         scheduledAt: email.scheduledAt.toISOString(),
+        attachments: email.attachments,
       };
 
       await client.query(outboxInsertSql, [email.id, JSON.stringify(outboxPayload)]);
@@ -100,7 +103,7 @@ export class EmailRepository {
         id, user_id AS "userId", sender_id AS "senderId", recipient, subject,
         body, status, scheduled_at AS "scheduledAt", sent_at AS "sentAt",
         ethereal_message_url AS "etherealMessageUrl", idempotency_key AS "idempotencyKey",
-        attempts, last_error AS "lastError", created_at AS "createdAt", updated_at AS "updatedAt"
+        attempts, last_error AS "lastError", attachments, created_at AS "createdAt", updated_at AS "updatedAt"
       FROM emails
       WHERE id = $1;
     `;
@@ -114,7 +117,7 @@ export class EmailRepository {
         id, user_id AS "userId", sender_id AS "senderId", recipient, subject,
         body, status, scheduled_at AS "scheduledAt", sent_at AS "sentAt",
         ethereal_message_url AS "etherealMessageUrl", idempotency_key AS "idempotencyKey",
-        attempts, last_error AS "lastError", created_at AS "createdAt", updated_at AS "updatedAt"
+        attempts, last_error AS "lastError", attachments, created_at AS "createdAt", updated_at AS "updatedAt"
       FROM emails
       WHERE idempotency_key = $1;
     `;
@@ -141,7 +144,7 @@ export class EmailRepository {
         id, user_id AS "userId", sender_id AS "senderId", recipient, subject,
         body, status, scheduled_at AS "scheduledAt", sent_at AS "sentAt",
         ethereal_message_url AS "etherealMessageUrl", idempotency_key AS "idempotencyKey",
-        attempts, last_error AS "lastError", created_at AS "createdAt", updated_at AS "updatedAt"
+        attempts, last_error AS "lastError", attachments, created_at AS "createdAt", updated_at AS "updatedAt"
       FROM emails
       WHERE user_id = $1 AND status IN ('SCHEDULED', 'QUEUED', 'PROCESSING', 'DEFERRED')
       ORDER BY scheduled_at ASC
@@ -176,7 +179,7 @@ export class EmailRepository {
         id, user_id AS "userId", sender_id AS "senderId", recipient, subject,
         body, status, scheduled_at AS "scheduledAt", sent_at AS "sentAt",
         ethereal_message_url AS "etherealMessageUrl", idempotency_key AS "idempotencyKey",
-        attempts, last_error AS "lastError", created_at AS "createdAt", updated_at AS "updatedAt"
+        attempts, last_error AS "lastError", attachments, created_at AS "createdAt", updated_at AS "updatedAt"
       FROM emails
       WHERE user_id = $1 AND status IN ('SENT', 'FAILED')
       ORDER BY COALESCE(sent_at, updated_at) DESC
@@ -234,7 +237,7 @@ export class EmailRepository {
         id, user_id AS "userId", sender_id AS "senderId", recipient, subject,
         body, status, scheduled_at AS "scheduledAt", sent_at AS "sentAt",
         ethereal_message_url AS "etherealMessageUrl", idempotency_key AS "idempotencyKey",
-        attempts, last_error AS "lastError", created_at AS "createdAt", updated_at AS "updatedAt";
+        attempts, last_error AS "lastError", attachments, created_at AS "createdAt", updated_at AS "updatedAt";
     `;
 
     const res = await query<EmailRecord>(sql, params);

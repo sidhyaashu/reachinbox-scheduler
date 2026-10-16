@@ -13,6 +13,13 @@ export interface UserProfile {
   createdAt?: string;
 }
 
+export interface EmailAttachment {
+  filename: string;
+  contentType?: string;
+  content: string; // base64 encoded string
+  size?: number;
+}
+
 export interface EmailRecord {
   id: string;
   userId: string;
@@ -26,6 +33,7 @@ export interface EmailRecord {
   etherealMessageUrl?: string | null;
   attempts: number;
   lastError?: string | null;
+  attachments?: EmailAttachment[] | null;
   createdAt: string;
   updatedAt?: string;
 }
@@ -73,6 +81,7 @@ export interface ScheduleBatchPayload {
   senderId?: string;
   delaySecondsBetweenSends?: number;
   hourlyLimit?: number;
+  attachments?: EmailAttachment[];
 }
 
 export interface SlackStatus {
@@ -222,6 +231,7 @@ export const apiClient = {
           startTime: payload.scheduledAt,
           delayBetweenEmailsSeconds: payload.delaySecondsBetweenSends || 2,
           hourlyLimit: payload.hourlyLimit || 200,
+          attachments: payload.attachments,
         },
       });
     },
