@@ -51,6 +51,7 @@ export function EmailList() {
     toggleStar,
     archivedEmailIds,
     trashedEmailIds,
+    trashedEmailsMap,
     archiveEmail,
     unarchiveEmail,
     moveToTrash,
@@ -90,7 +91,7 @@ export function EmailList() {
         await permanentDeleteEmail(target.id);
         success('Email Permanently Deleted', `Email to ${target.recipient} was removed permanently`);
       } else {
-        await moveToTrash(target.id);
+        await moveToTrash(target.id, target);
         success('Email Moved to Trash', `Email to ${target.recipient} was moved to Trash`);
       }
     } catch (err: any) {
@@ -117,7 +118,17 @@ export function EmailList() {
       (e) => archivedEmailIds.includes(e.id) && !trashedEmailIds.includes(e.id)
     );
   } else if (activeTab === 'trash') {
-    rawList = [...scheduledEmails, ...sentEmails].filter((e) => trashedEmailIds.includes(e.id));
+    const trashedMapList = Object.values(trashedEmailsMap || {});
+    const fromLists = [...scheduledEmails, ...sentEmails].filter((e) => trashedEmailIds.includes(e.id));
+    const seen = new Set<string>();
+    const combined: EmailRecord[] = [];
+    for (const item of [...trashedMapList, ...fromLists]) {
+      if (!seen.has(item.id)) {
+        seen.add(item.id);
+        combined.push(item);
+      }
+    }
+    rawList = combined;
   } else if (activeTab === 'scheduled') {
     rawList = scheduledEmails.filter(
       (e) => !archivedEmailIds.includes(e.id) && !trashedEmailIds.includes(e.id)

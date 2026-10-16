@@ -77,15 +77,15 @@ export function EmailDetailView() {
   };
 
   const handleConfirmDelete = async () => {
-    const emailId = selectedEmail.id;
+    const email = selectedEmail;
     setConfirmOpen(false);
     handleBack();
     try {
       if (activeTab === 'trash') {
-        await permanentDeleteEmail(emailId);
+        await permanentDeleteEmail(email.id);
         success('Email Permanently Deleted', 'Email was permanently removed');
       } else {
-        await moveToTrash(emailId);
+        await moveToTrash(email.id, email);
         success('Email Moved to Trash', 'Email was moved to Trash');
       }
     } catch (err: any) {
