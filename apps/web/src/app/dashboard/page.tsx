@@ -137,6 +137,8 @@ function DashboardContent() {
       if (filterStatus !== urlStatus) {
         setFilterStatus(urlStatus as any);
       }
+    } else if (!urlStatus && filterStatus !== 'ALL') {
+      setFilterStatus('ALL');
     }
   }, [
     urlTab,
@@ -294,7 +296,7 @@ function DashboardContent() {
       params.set('status', status);
     }
     // Synchronize active tab with filter category
-    if (status === 'SENT' && activeTab !== 'sent') {
+    if ((status === 'SENT' || status === 'FAILED') && activeTab !== 'sent') {
       setActiveTab('sent');
       params.set('tab', 'sent');
     } else if ((status === 'SCHEDULED' || status === 'PROCESSING') && activeTab !== 'scheduled') {

@@ -29,8 +29,11 @@ export function createEmailWorker(processor: EmailProcessor = new EmailProcessor
     console.log(`[EmailWorker] Job ${job.id} completed successfully.`);
   });
 
-  workerInstance.on('failed', (job, err) => {
+  workerInstance.on('failed', async (job, err) => {
     console.error(`[EmailWorker] Job ${job?.id} failed with error:`, err.message);
+    if (job?.data?.emailId) {
+      await processor.markJobFailed(job.data.emailId, err.message);
+    }
   });
 
   workerInstance.on('error', (err) => {

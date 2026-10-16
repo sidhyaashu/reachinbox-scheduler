@@ -152,4 +152,20 @@ export class EmailProcessor {
     }
     return false;
   }
+
+  async markJobFailed(emailId: string, errorMessage: string): Promise<void> {
+    try {
+      await this.emailRepo.updateStatus(
+        emailId,
+        ['QUEUED', 'PROCESSING', 'SCHEDULED', 'DEFERRED'],
+        'FAILED',
+        {
+          lastError: `Delivery failed: ${errorMessage}`,
+          incrementAttempts: true,
+        }
+      );
+    } catch (e: any) {
+      console.error(`[EmailProcessor] Failed to set status to FAILED for email ${emailId}:`, e.message);
+    }
+  }
 }

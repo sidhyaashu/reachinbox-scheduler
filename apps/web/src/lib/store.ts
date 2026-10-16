@@ -232,7 +232,14 @@ export const useSchedulerStore = create<SchedulerState>((set, get) => ({
   },
 
   setActiveTab: (tab: 'scheduled' | 'sent' | 'archive' | 'drafts' | 'trash' | 'integrations') => {
-    set({ activeTab: tab, selectedEmail: null, detailOpen: false, composeOpen: false, mobileSidebarOpen: false });
+    set({
+      activeTab: tab,
+      filterStatus: 'ALL',
+      selectedEmail: null,
+      detailOpen: false,
+      composeOpen: false,
+      mobileSidebarOpen: false,
+    });
   },
 
   setMobileSidebarOpen: (open: boolean) => {

@@ -203,20 +203,32 @@ export class EmailRepository {
       incrementAttempts?: boolean;
     }
   ): Promise<EmailRecord | null> {
-    const attemptsClause = meta?.incrementAttempts ? ', attempts = attempts + 1' : '';
-    const sentAtClause = meta?.sentAt !== undefined ? ', sent_at = $4' : '';
-    const previewUrlClause = meta?.etherealMessageUrl !== undefined ? ', ethereal_message_url = $5' : '';
-    const errorClause = meta?.lastError !== undefined ? ', last_error = $6' : '';
+    const params: any[] = [toStatus, id, fromStatuses];
+    let paramIndex = 4;
+    let extraSets = '';
+
+    if (meta?.incrementAttempts) {
+      extraSets += ', attempts = attempts + 1';
+    }
+    if (meta?.sentAt !== undefined) {
+      extraSets += `, sent_at = $${paramIndex++}`;
+      params.push(meta.sentAt);
+    }
+    if (meta?.etherealMessageUrl !== undefined) {
+      extraSets += `, ethereal_message_url = $${paramIndex++}`;
+      params.push(meta.etherealMessageUrl);
+    }
+    if (meta?.lastError !== undefined) {
+      extraSets += `, last_error = $${paramIndex++}`;
+      params.push(meta.lastError);
+    }
 
     const sql = `
       UPDATE emails
       SET
         status = $1,
         updated_at = NOW()
-        ${attemptsClause}
-        ${sentAtClause}
-        ${previewUrlClause}
-        ${errorClause}
+        ${extraSets}
       WHERE id = $2 AND status = ANY($3::varchar[])
       RETURNING
         id, user_id AS "userId", sender_id AS "senderId", recipient, subject,
@@ -225,15 +237,7 @@ export class EmailRepository {
         attempts, last_error AS "lastError", created_at AS "createdAt", updated_at AS "updatedAt";
     `;
 
-    const res = await query<EmailRecord>(sql, [
-      toStatus,
-      id,
-      fromStatuses,
-      meta?.sentAt || null,
-      meta?.etherealMessageUrl || null,
-      meta?.lastError || null,
-    ]);
-
+    const res = await query<EmailRecord>(sql, params);
     return res.rows[0] || null;
   }
 
