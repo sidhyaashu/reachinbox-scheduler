@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { X, Zap, Bell, CheckCircle2, AlertCircle, ExternalLink, Unlink } from 'lucide-react';
-import { SlackStatus, api } from '../lib/api';
+import { SlackStatus, apiClient } from '../lib/api-client';
 
 interface SlackModalProps {
   isOpen: boolean;
@@ -22,7 +22,7 @@ export function SlackModal({ isOpen, onClose, status, onRefresh }: SlackModalPro
     setTestingAlert(true);
     setMessage(null);
     try {
-      const res = await api.sendSlackTestAlert();
+      const res = await apiClient.integrations.sendSlackTestAlert();
       setMessage({ text: res.message || 'Test alert sent successfully to Slack!', type: 'success' });
     } catch (err: any) {
       setMessage({ text: err.message || 'Failed to send test alert', type: 'error' });
@@ -35,7 +35,7 @@ export function SlackModal({ isOpen, onClose, status, onRefresh }: SlackModalPro
     setDisconnecting(true);
     setMessage(null);
     try {
-      await api.disconnectSlack();
+      await apiClient.integrations.disconnectSlack();
       onRefresh();
       onClose();
     } catch (err: any) {

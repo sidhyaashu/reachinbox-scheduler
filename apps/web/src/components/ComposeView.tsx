@@ -98,16 +98,18 @@ export function ComposeView() {
   const [delaySeconds, setDelaySeconds] = useState(() => composeDraft?.delaySeconds ?? 2);
   const [hourlyLimit, setHourlyLimit] = useState(() => composeDraft?.hourlyLimit ?? 200);
 
-  // Sync sender info once loaded - Fall back safely to Sandbox Relay if unverified
+  // Sync sender info once loaded
   useEffect(() => {
-    if (isMailboxVerified && sender?.email) {
+    if (sender?.email) {
       setSelectedSenderEmail(sender.email);
+    } else if (user?.email) {
+      setSelectedSenderEmail(user.email);
     } else {
       setSelectedSenderEmail('sandbox@reachinbox.email');
     }
     if (sender?.minDelaySeconds && !composeDraft) setDelaySeconds(sender.minDelaySeconds);
     if (sender?.hourlyLimit && !composeDraft) setHourlyLimit(sender.hourlyLimit);
-  }, [sender, isMailboxVerified, composeDraft]);
+  }, [sender, user, composeDraft]);
 
   // Send Later Popover state
   const [sendLaterOpen, setSendLaterOpen] = useState(false);

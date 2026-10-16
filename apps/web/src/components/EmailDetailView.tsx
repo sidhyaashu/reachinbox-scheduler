@@ -106,12 +106,14 @@ export function EmailDetailView() {
     }
   };
 
-  const recipientEmail = selectedEmail.recipient || 'recipient@example.com';
-  const [recipientPrefix] = recipientEmail.split('@');
+  const recipientEmail = selectedEmail.recipient || '';
+  const recipientPrefix = recipientEmail.includes('@') ? recipientEmail.split('@')[0] : recipientEmail;
   const formattedRecipient = recipientPrefix
-    .split('.')
-    .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
-    .join(' ');
+    ? recipientPrefix
+        .split(/[._-]/)
+        .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
+        .join(' ')
+    : 'Recipient';
 
   const senderEmail = sender?.email || user?.email || '';
   const senderName = sender?.name || user?.name || (user?.email ? user.email.split('@')[0] : 'Sender');
