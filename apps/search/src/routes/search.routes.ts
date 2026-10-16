@@ -7,6 +7,7 @@ export function createSearchRouter(controller: SearchController = new SearchCont
   router.get('/', controller.search);
   router.post('/index', controller.indexDocument);
   router.post('/rebuild', controller.rebuildIndex);
+  router.post('/reindex', controller.rebuildIndex);
 
   return router;
 }
