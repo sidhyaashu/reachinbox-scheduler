@@ -1,3 +1,4 @@
+import axios from 'axios';
 import { Job } from 'bullmq';
 import { EmailJobData, addEmailJob } from '@reachinbox/queue';
 import { EmailRepository, SenderRepository } from '@reachinbox/database';
@@ -10,7 +11,7 @@ export class EmailProcessor {
     private readonly emailRepo: EmailRepository = new EmailRepository(),
     private readonly senderRepo: SenderRepository = new SenderRepository(),
     private readonly rateLimiter: WorkerRateLimiter = new WorkerRateLimiter(),
-    private readonly mailerService: MailerService = new MailerService(),
+    private readonly mailerService: MailerService = new MailerService(senderRepo),
     private readonly alertService: AlertService = new AlertService()
   ) {}
 
@@ -104,6 +105,21 @@ export class EmailProcessor {
         `[EmailProcessor] Successfully sent email ${data.emailId} to ${data.recipient}. Preview URL: ${sendResult.etherealPreviewUrl || 'N/A'}`
       );
 
+      // 8. Asynchronously index/update email document in Elasticsearch
+      this.indexToSearch({
+        id: data.emailId,
+        userId: data.userId,
+        senderId: data.senderId,
+        recipient: data.recipient,
+        subject: data.subject,
+        body: email.body || data.subject,
+        status: 'SENT',
+        scheduledAt: email.scheduledAt instanceof Date ? email.scheduledAt.toISOString() : String(email.scheduledAt),
+        sentAt: new Date().toISOString(),
+        etherealMessageUrl: sendResult.etherealPreviewUrl,
+        createdAt: email.createdAt instanceof Date ? email.createdAt.toISOString() : String(email.createdAt),
+      });
+
       return {
         status: 'SENT',
         previewUrl: sendResult.etherealPreviewUrl,
@@ -123,6 +139,21 @@ export class EmailProcessor {
             incrementAttempts: true,
           }
         );
+
+        this.indexToSearch({
+          id: data.emailId,
+          userId: data.userId,
+          senderId: data.senderId,
+          recipient: data.recipient,
+          subject: data.subject,
+          body: email.body || data.subject,
+          status: 'FAILED',
+          scheduledAt: email.scheduledAt instanceof Date ? email.scheduledAt.toISOString() : String(email.scheduledAt),
+          sentAt: null,
+          etherealMessageUrl: null,
+          createdAt: email.createdAt instanceof Date ? email.createdAt.toISOString() : String(email.createdAt),
+        });
+
         return { status: 'FAILED' };
       }
 
@@ -147,7 +178,13 @@ export class EmailProcessor {
     if (typeof code === 'number' && code >= 500 && code < 600) {
       return true;
     }
-    if (err.message && (err.message.includes('No recipients defined') || err.message.includes('Invalid login'))) {
+    if (
+      err.message &&
+      (err.message.includes('Gmail API delivery error (400)') ||
+        err.message.includes('Gmail API delivery error (403)') ||
+        err.message.includes('No recipients defined') ||
+        err.message.includes('Invalid login'))
+    ) {
       return true;
     }
     return false;
@@ -167,5 +204,21 @@ export class EmailProcessor {
     } catch (e: any) {
       console.error(`[EmailProcessor] Failed to set status to FAILED for email ${emailId}:`, e.message);
     }
+  }
+
+  private indexToSearch(doc: any): void {
+    if (process.env.NODE_ENV === 'test' && !process.env.SEARCH_SERVICE_URL) {
+      return;
+    }
+
+    const searchUrl =
+      process.env.SEARCH_SERVICE_URL ||
+      (process.env.NODE_ENV === 'production' ? 'http://search:4004' : 'http://localhost:4004');
+
+    axios
+      .post(`${searchUrl}/api/v1/search/index`, doc, { timeout: 3000 })
+      .catch((err: any) => {
+        console.warn(`[EmailProcessor] Async search indexing failed for email ${doc.id}:`, err.message);
+      });
   }
 }

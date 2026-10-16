@@ -1,3 +1,4 @@
+import axios from 'axios';
 import {
   EmailRepository,
   SenderRepository,
@@ -73,6 +74,9 @@ export class EmailService {
       idempotencyKey: input.idempotencyKey || null,
     });
 
+    // 4. Asynchronously index into Elasticsearch
+    this.indexToSearch(record);
+
     return record;
   }
 
@@ -125,6 +129,8 @@ export class EmailService {
     });
 
     const emails = await this.emailRepo.createBatchEmailsWithOutbox(emailBatch);
+    emails.forEach((rec) => this.indexToSearch(rec));
+
     return {
       scheduledCount: emails.length,
       emails,
@@ -176,6 +182,9 @@ export class EmailService {
     } catch (err) {
       console.warn(`[EmailService] Non-critical: Could not remove BullMQ job ${emailId}:`, err);
     }
+
+    // Update Elasticsearch index with CANCELLED status
+    this.indexToSearch({ ...email, status: 'CANCELLED' });
   }
 
   async deleteEmail(userId: string, emailId: string): Promise<void> {
@@ -191,5 +200,51 @@ export class EmailService {
     } catch (err) {
       console.warn(`[EmailService] Non-critical: Could not remove BullMQ job ${emailId}:`, err);
     }
+
+    // Update Elasticsearch index with CANCELLED/deleted status
+    this.indexToSearch({ ...email, status: 'CANCELLED' });
+  }
+
+  private indexToSearch(record: EmailRecord): void {
+    if (process.env.NODE_ENV === 'test' && !process.env.SEARCH_SERVICE_URL) {
+      return;
+    }
+
+    const searchUrl =
+      process.env.SEARCH_SERVICE_URL ||
+      (process.env.NODE_ENV === 'production' ? 'http://search:4004' : 'http://localhost:4004');
+
+    axios
+      .post(
+        `${searchUrl}/api/v1/search/index`,
+        {
+          id: record.id,
+          userId: record.userId,
+          senderId: record.senderId,
+          recipient: record.recipient,
+          subject: record.subject,
+          body: record.body,
+          status: record.status,
+          scheduledAt:
+            record.scheduledAt instanceof Date
+              ? record.scheduledAt.toISOString()
+              : record.scheduledAt,
+          sentAt: record.sentAt
+            ? record.sentAt instanceof Date
+              ? record.sentAt.toISOString()
+              : record.sentAt
+            : null,
+          etherealMessageUrl: record.etherealMessageUrl || null,
+          createdAt:
+            record.createdAt instanceof Date
+              ? record.createdAt.toISOString()
+              : record.createdAt,
+        },
+        { timeout: 3000 }
+      )
+      .catch((err: any) => {
+        // Non-blocking: log warning only so core scheduling flow is never impacted
+        console.warn(`[EmailService] Async search indexing failed for email ${record.id}:`, err.message);
+      });
   }
 }

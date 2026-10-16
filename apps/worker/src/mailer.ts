@@ -1,4 +1,6 @@
+import axios from 'axios';
 import nodemailer, { Transporter } from 'nodemailer';
+import { SenderRepository } from '@reachinbox/database';
 import type { Sender } from '@reachinbox/shared';
 
 let cachedEtherealTransporter: Transporter | null = null;
@@ -17,6 +19,140 @@ export interface SendEmailResult {
 }
 
 export class MailerService {
+  constructor(
+    private readonly senderRepo: SenderRepository = new SenderRepository()
+  ) {}
+
+  /**
+   * Obtains a valid Google OAuth2 access token using the sender's refresh token.
+   */
+  async getGoogleAccessToken(sender: Sender): Promise<string> {
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+
+    if (!clientId || !clientSecret) {
+      throw new Error(
+        'Missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET in worker environment. Required for Gmail OAuth2 sending.'
+      );
+    }
+
+    if (!sender.googleRefreshToken) {
+      if (sender.googleAccessToken) {
+        return sender.googleAccessToken;
+      }
+      throw new Error('Sender does not have a Google refresh token.');
+    }
+
+    try {
+      const res = await axios.post<{ access_token: string; refresh_token?: string }>(
+        'https://oauth2.googleapis.com/token',
+        new URLSearchParams({
+          client_id: clientId,
+          client_secret: clientSecret,
+          refresh_token: sender.googleRefreshToken,
+          grant_type: 'refresh_token',
+        }).toString(),
+        {
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          timeout: 10000,
+        }
+      );
+
+      const newAccessToken = res.data.access_token;
+      if (newAccessToken && sender.id) {
+        try {
+          await this.senderRepo.updateGoogleTokens(sender.id, newAccessToken, res.data.refresh_token);
+        } catch (dbErr: any) {
+          console.warn('[MailerService] Failed to cache refreshed Google token in DB:', dbErr.message);
+        }
+      }
+      return newAccessToken;
+    } catch (err: any) {
+      const errBody = err.response?.data ? JSON.stringify(err.response.data) : err.message;
+      if (sender.googleAccessToken) {
+        console.warn(
+          `[MailerService] Google token refresh failed (${errBody}), falling back to cached access token.`
+        );
+        return sender.googleAccessToken;
+      }
+      throw new Error(`Google OAuth token refresh failed: ${errBody}`);
+    }
+  }
+
+  /**
+   * Compiles the email options into a standard RFC 2822 base64url-encoded string.
+   */
+  async compileMimeMessage(options: SendEmailOptions): Promise<string> {
+    const fromAddress = options.from || options.sender?.email || 'reachinbox@ethereal.email';
+    const fromName = options.sender?.name || 'ReachInbox';
+    const isHtml = options.body.includes('<') && options.body.includes('>');
+
+    const compiler = nodemailer.createTransport({
+      streamTransport: true,
+      newline: 'windows',
+    });
+
+    const info = await compiler.sendMail({
+      from: `"${fromName}" <${fromAddress}>`,
+      to: options.to,
+      subject: options.subject,
+      text: isHtml ? undefined : options.body,
+      html: isHtml ? options.body : undefined,
+    });
+
+    if (Buffer.isBuffer(info.message)) {
+      return (info.message as Buffer).toString('base64url');
+    }
+
+    const messageStream = info.message as NodeJS.ReadableStream;
+    const chunks: Buffer[] = [];
+    return new Promise<string>((resolve, reject) => {
+      messageStream.on('data', (chunk: Buffer) => chunks.push(chunk));
+      messageStream.on('end', () => {
+        const raw = Buffer.concat(chunks).toString('base64url');
+        resolve(raw);
+      });
+      messageStream.on('error', reject);
+    });
+  }
+
+  /**
+   * Sends an email via the official Gmail REST API using OAuth2 (https://www.googleapis.com/auth/gmail.send).
+   */
+  async sendViaGmailRest(options: SendEmailOptions): Promise<SendEmailResult> {
+    const sender = options.sender!;
+    const accessToken = await this.getGoogleAccessToken(sender);
+    const raw = await this.compileMimeMessage(options);
+
+    try {
+      const res = await axios.post<{ id: string; threadId: string }>(
+        'https://gmail.googleapis.com/gmail/v1/users/me/messages/send',
+        { raw },
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 15000,
+        }
+      );
+
+      console.log(
+        `[MailerService] Successfully sent email to ${options.to} via Gmail REST API. Message ID: ${res.data.id}`
+      );
+
+      return {
+        messageId: res.data.id,
+        etherealPreviewUrl: null,
+      };
+    } catch (err: any) {
+      const status = err.response?.status;
+      const data = err.response?.data ? JSON.stringify(err.response.data) : err.message;
+      console.error(`[MailerService] Gmail REST API delivery failed (HTTP ${status || 'ERR'}):`, data);
+      throw new Error(`Gmail API delivery error (${status || 'UNKNOWN'}): ${data}`);
+    }
+  }
+
   /**
    * Resolves or creates a Nodemailer transporter.
    */
@@ -97,7 +233,53 @@ export class MailerService {
     return cachedEtherealTransporter;
   }
 
+  async sendViaEtherealFallback(options: SendEmailOptions, reason: string): Promise<SendEmailResult> {
+    const transporter = await this.getTransporter(null);
+    const fromAddress = options.sender?.email || 'reachinbox@ethereal.email';
+    const isHtml = options.body.includes('<') && options.body.includes('>');
+    const notice = `[Sandbox Relay Notice: Direct Gmail API delivery failed (${reason}). Captured in Ethereal sandbox.]`;
+
+    const info = await transporter.sendMail({
+      from: `"${options.sender?.name || 'ReachInbox'}" <${fromAddress}>`,
+      to: options.to,
+      subject: options.subject,
+      text: isHtml ? undefined : `${notice}\n\n${options.body}`,
+      html: isHtml
+        ? `<div style="padding: 10px; margin-bottom: 12px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; font-size: 13px; color: #92400e;"><strong>${notice}</strong></div>${options.body}`
+        : undefined,
+    });
+
+    const previewUrl = nodemailer.getTestMessageUrl(info);
+    const etherealPreviewUrl = typeof previewUrl === 'string' ? previewUrl : null;
+
+    return {
+      messageId: info.messageId,
+      etherealPreviewUrl,
+    };
+  }
+
   async sendMail(options: SendEmailOptions): Promise<SendEmailResult> {
+    // 1. Deliver via Gmail REST API for Google OAuth2 senders
+    if (
+      options.sender &&
+      (options.sender.authType === 'oauth2_google' || options.sender.googleRefreshToken) &&
+      options.sender.googleRefreshToken
+    ) {
+      try {
+        return await this.sendViaGmailRest(options);
+      } catch (gmailErr: any) {
+        // Fallback to Ethereal sandbox if explicitly enabled or in development/evaluation
+        if (process.env.ALLOW_SANDBOX_FALLBACK === 'true') {
+          console.warn(
+            `[MailerService] Gmail API delivery failed (${gmailErr.message}). Falling back to Ethereal sandbox relay.`
+          );
+          return this.sendViaEtherealFallback(options, gmailErr.message);
+        }
+        throw gmailErr;
+      }
+    }
+
+    // 2. Deliver via SMTP (Custom SMTP or Ethereal sandbox)
     const transporter = await this.getTransporter(options.sender);
 
     const fromAddress = options.from || options.sender?.email || 'reachinbox@ethereal.email';

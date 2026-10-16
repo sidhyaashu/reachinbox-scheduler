@@ -86,6 +86,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
       migrator:
         condition: service_completed_successfully
     environment:
@@ -96,6 +98,9 @@ services:
       PGUSER: reachinbox_user
       PGPASSWORD: reachinbox_password
       PGDATABASE: reachinbox_db
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      SEARCH_SERVICE_URL: http://search:4004
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
       GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL}
@@ -166,11 +171,20 @@ services:
       WORKER_CONCURRENCY: 5
       MIN_INTER_SEND_DELAY_SECONDS: 2
       DEFAULT_HOURLY_LIMIT: 200
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      SEARCH_SERVICE_URL: http://search:4004
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
       ETHEREAL_USER: ${ETHEREAL_USER:-}
       ETHEREAL_PASS: ${ETHEREAL_PASS:-}
       ETHEREAL_HOST: ${ETHEREAL_HOST:-smtp.ethereal.email}
       ETHEREAL_PORT: ${ETHEREAL_PORT:-587}
       ETHEREAL_SECURE: ${ETHEREAL_SECURE:-false}
+      ALLOW_SANDBOX_FALLBACK: ${ALLOW_SANDBOX_FALLBACK:-true}
       APPLICATIONINSIGHTS_CONNECTION_STRING: ${APPLICATIONINSIGHTS_CONNECTION_STRING:-}
       APPLICATIONINSIGHTS_ROLE_NAME: reachinbox-worker
       OTEL_SERVICE_NAME: reachinbox-worker

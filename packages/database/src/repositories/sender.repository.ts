@@ -231,6 +231,22 @@ export class SenderRepository {
     return sender;
   }
 
+  async updateGoogleTokens(
+    senderId: string,
+    accessToken: string,
+    refreshToken?: string | null
+  ): Promise<void> {
+    const sql = `
+      UPDATE senders
+      SET
+        google_access_token = $2,
+        google_refresh_token = COALESCE($3, google_refresh_token),
+        updated_at = NOW()
+      WHERE id = $1;
+    `;
+    await query(sql, [senderId, accessToken, refreshToken || null]);
+  }
+
   async disconnectGoogleOAuth(userId: string): Promise<Sender | null> {
     const existing = await this.findDefaultOrFirstByUserId(userId);
     if (!existing) return null;
@@ -238,6 +254,11 @@ export class SenderRepository {
       UPDATE senders
       SET
         auth_type = 'smtp',
+        smtp_host = 'smtp.ethereal.email',
+        smtp_port = 587,
+        smtp_user = '',
+        smtp_pass = '',
+        smtp_secure = false,
         google_refresh_token = NULL,
         google_access_token = NULL,
         updated_at = NOW()

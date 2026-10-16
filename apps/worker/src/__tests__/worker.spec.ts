@@ -231,5 +231,67 @@ describe('MailerService', () => {
         }),
       })
     );
+    createTransportSpy.mockRestore();
+  });
+
+  it('delivers email via Gmail REST API when sender has Google OAuth credentials', async () => {
+    process.env.GOOGLE_CLIENT_ID = 'test-client-id';
+    process.env.GOOGLE_CLIENT_SECRET = 'test-client-secret';
+
+    const axios = (await import('axios')).default;
+    const { MailerService } = await import('../mailer.js');
+
+    const mockSenderRepo = {
+      updateGoogleTokens: vi.fn().mockResolvedValue(undefined),
+    };
+    const mailer = new MailerService(mockSenderRepo as any);
+
+    // Mock token refresh
+    const axiosPostSpy = vi.spyOn(axios, 'post').mockImplementation((url: string) => {
+      if (url.includes('oauth2.googleapis.com/token')) {
+        return Promise.resolve({ data: { access_token: 'fresh-access-token' } }) as any;
+      }
+      if (url.includes('gmail.googleapis.com')) {
+        return Promise.resolve({ data: { id: 'gmail-msg-12345', threadId: 'thread-12345' } }) as any;
+      }
+      return Promise.reject(new Error(`Unexpected URL: ${url}`));
+    });
+
+    const result = await mailer.sendMail({
+      to: 'recipient@example.com',
+      subject: 'Hello via Gmail API',
+      body: '<p>Testing Gmail REST</p>',
+      sender: {
+        id: 'sender-1',
+        userId: 'user-1',
+        email: 'alex@gmail.com',
+        name: 'Alex',
+        smtpHost: 'smtp.gmail.com',
+        smtpPort: 465,
+        smtpUser: '',
+        smtpPass: '',
+        smtpSecure: true,
+        hourlyLimit: 200,
+        minDelaySeconds: 2,
+        authType: 'oauth2_google',
+        googleRefreshToken: 'refresh-token-12345',
+        googleAccessToken: 'old-access-token',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    });
+
+    expect(result.messageId).toBe('gmail-msg-12345');
+    expect(result.etherealPreviewUrl).toBeNull();
+    expect(axiosPostSpy).toHaveBeenCalledWith(
+      'https://gmail.googleapis.com/gmail/v1/users/me/messages/send',
+      expect.objectContaining({ raw: expect.any(String) }),
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: 'Bearer fresh-access-token',
+        }),
+      })
+    );
+    expect(mockSenderRepo.updateGoogleTokens).toHaveBeenCalledWith('sender-1', 'fresh-access-token', undefined);
   });
 });
