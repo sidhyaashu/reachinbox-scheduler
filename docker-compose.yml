@@ -105,6 +105,8 @@ services:
       SESSION_SECRET: ${SESSION_SECRET}
       WEB_URL: ${WEB_URL:-https://reachinbox.ovanthra.com}
       APPLICATIONINSIGHTS_CONNECTION_STRING: ${APPLICATIONINSIGHTS_CONNECTION_STRING:-}
+      APPLICATIONINSIGHTS_ROLE_NAME: reachinbox-api
+      OTEL_SERVICE_NAME: reachinbox-api
 
   scheduler:
     build:
@@ -133,6 +135,8 @@ services:
       REDIS_PORT: 6379
       OUTBOX_POLL_INTERVAL_MS: 1000
       APPLICATIONINSIGHTS_CONNECTION_STRING: ${APPLICATIONINSIGHTS_CONNECTION_STRING:-}
+      APPLICATIONINSIGHTS_ROLE_NAME: reachinbox-scheduler
+      OTEL_SERVICE_NAME: reachinbox-scheduler
 
   worker:
     build:
@@ -168,6 +172,8 @@ services:
       ETHEREAL_PORT: ${ETHEREAL_PORT:-587}
       ETHEREAL_SECURE: ${ETHEREAL_SECURE:-false}
       APPLICATIONINSIGHTS_CONNECTION_STRING: ${APPLICATIONINSIGHTS_CONNECTION_STRING:-}
+      APPLICATIONINSIGHTS_ROLE_NAME: reachinbox-worker
+      OTEL_SERVICE_NAME: reachinbox-worker
 
   search:
     build:
@@ -194,6 +200,8 @@ services:
       PGPASSWORD: reachinbox_password
       PGDATABASE: reachinbox_db
       APPLICATIONINSIGHTS_CONNECTION_STRING: ${APPLICATIONINSIGHTS_CONNECTION_STRING:-}
+      APPLICATIONINSIGHTS_ROLE_NAME: reachinbox-search
+      OTEL_SERVICE_NAME: reachinbox-search
 
   gateway:
     build:
@@ -222,6 +230,8 @@ services:
       SESSION_SECRET: ${SESSION_SECRET}
       WEB_URL: ${WEB_URL:-https://reachinbox.ovanthra.com}
       APPLICATIONINSIGHTS_CONNECTION_STRING: ${APPLICATIONINSIGHTS_CONNECTION_STRING:-}
+      APPLICATIONINSIGHTS_ROLE_NAME: reachinbox-gateway
+      OTEL_SERVICE_NAME: reachinbox-gateway
 
   web:
     build:

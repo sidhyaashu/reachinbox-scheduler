@@ -21,6 +21,11 @@ export function initTelemetry(serviceName: string): boolean {
   }
 
   try {
+    // 1. Set OpenTelemetry & Azure Application Insights standard role variables
+    process.env.OTEL_SERVICE_NAME = serviceName;
+    process.env.APPLICATIONINSIGHTS_ROLE_NAME = serviceName;
+    process.env.OTEL_RESOURCE_ATTRIBUTES = `service.name=${serviceName},service.version=1.0.0,deployment.environment=${process.env.NODE_ENV || 'production'}`;
+
     appInsights
       .setup(connectionString)
       .setAutoCollectRequests(true)
@@ -32,15 +37,42 @@ export function initTelemetry(serviceName: string): boolean {
       .setSendLiveMetrics(true)
       .setDistributedTracingMode(appInsights.DistributedTracingModes.AI_AND_W3C);
 
-    if (appInsights.defaultClient?.context?.tags) {
-      appInsights.defaultClient.context.tags[
-        appInsights.defaultClient.context.keys.cloudRole
-      ] = serviceName;
+    appInsights.start();
+
+    // 2. Set Cloud Role Name & Instance on defaultClient context
+    if (appInsights.defaultClient) {
+      const client = appInsights.defaultClient;
+      const roleKey = client.context?.keys?.cloudRole || 'ai.cloud.role';
+      const roleInstanceKey = client.context?.keys?.cloudRoleInstance || 'ai.cloud.roleInstance';
+      const appVerKey = client.context?.keys?.applicationVersion || 'ai.application.ver';
+
+      if (client.context?.tags) {
+        client.context.tags[roleKey] = serviceName;
+        client.context.tags[roleInstanceKey] = process.env.HOSTNAME || `${serviceName}-instance`;
+        client.context.tags[appVerKey] = '1.0.0';
+      }
+
+      // 3. Telemetry processor ensures every outbound envelope has exact service name & metadata attached
+      client.addTelemetryProcessor((envelope) => {
+        if (!envelope.tags) {
+          envelope.tags = {};
+        }
+        envelope.tags['ai.cloud.role'] = serviceName;
+        envelope.tags['ai.cloud.roleInstance'] = process.env.HOSTNAME || `${serviceName}-instance`;
+        envelope.tags['ai.application.ver'] = '1.0.0';
+
+        if (envelope.data && (envelope.data as any).baseData) {
+          const baseData = (envelope.data as any).baseData;
+          baseData.properties = baseData.properties || {};
+          baseData.properties['service.name'] = serviceName;
+          baseData.properties['service.environment'] = process.env.NODE_ENV || 'production';
+        }
+        return true;
+      });
     }
 
-    appInsights.start();
     isTelemetryInitialized = true;
-    console.log(`[Telemetry] Azure Application Insights initialized for ${serviceName}`);
+    console.log(`[Telemetry] Azure Application Insights initialized for service: ${serviceName}`);
     return true;
   } catch (err) {
     console.error(`[Telemetry] Failed to initialize Application Insights for ${serviceName}:`, err);
