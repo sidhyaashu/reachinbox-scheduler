@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { ConfirmModal } from './ui/confirm-modal';
+import { SmtpConfigModal } from './SmtpConfigModal';
 import { useRouter } from 'next/navigation';
 
 export function IntegrationsView() {
@@ -41,12 +42,14 @@ export function IntegrationsView() {
   const [testingSlack, setTestingSlack] = useState(false);
   const [disconnectingSlack, setDisconnectingSlack] = useState(false);
   const [disconnectingGoogle, setDisconnectingGoogle] = useState(false);
+  const [disconnectingSmtp, setDisconnectingSmtp] = useState(false);
+  const [smtpModalOpen, setSmtpModalOpen] = useState(false);
   const [searchFilter, setSearchFilter] = useState('');
   const [activeCategory, setActiveCategory] = useState<'all' | 'email' | 'alerts' | 'infra'>('all');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean;
-    type: 'google' | 'slack' | null;
+    type: 'google' | 'slack' | 'smtp' | null;
     title: string;
     description: string;
     confirmText: string;
@@ -66,6 +69,7 @@ export function IntegrationsView() {
     : 'Authenticated Mailbox';
 
   const isGoogleConnected = sender?.authType === 'oauth2_google';
+  const isCustomSmtpConnected = Boolean(sender?.hasCustomSmtp);
   const isSlackConnected = Boolean(slackIntegration?.connected);
 
   // Check for success URL parameters after OAuth redirects
@@ -129,6 +133,17 @@ export function IntegrationsView() {
     });
   };
 
+  const promptDisconnectSmtp = () => {
+    setConfirmModal({
+      isOpen: true,
+      type: 'smtp',
+      title: 'Disconnect Custom SMTP Relay?',
+      description: 'Are you sure you want to disconnect your custom SMTP credentials? ReachInbox will safely fall back to the sandboxed Ethereal SMTP dispatch.',
+      confirmText: 'Disconnect SMTP',
+      notice: 'Campaigns will route through sandboxed Ethereal SMTP preview links instead of your direct SMTP server.',
+    });
+  };
+
   const handleExecuteConfirm = async () => {
     if (confirmModal.type === 'google') {
       setDisconnectingGoogle(true);
@@ -153,6 +168,18 @@ export function IntegrationsView() {
         error(err.message || 'Failed to disconnect Slack');
       } finally {
         setDisconnectingSlack(false);
+      }
+    } else if (confirmModal.type === 'smtp') {
+      setDisconnectingSmtp(true);
+      try {
+        await apiClient.integrations.disconnectSmtp();
+        await loadDashboard();
+        success('Custom SMTP disconnected. Sandbox fallback restored.');
+        setConfirmModal((prev) => ({ ...prev, isOpen: false, type: null }));
+      } catch (err: any) {
+        error(err.message || 'Failed to disconnect custom SMTP');
+      } finally {
+        setDisconnectingSmtp(false);
       }
     }
   };
@@ -225,7 +252,7 @@ export function IntegrationsView() {
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Services Active</p>
               <p className="text-base font-bold text-slate-900 mt-0.5">
-                {(isGoogleConnected ? 1 : 0) + (isSlackConnected ? 1 : 0) + 2} <span className="text-xs font-normal text-slate-500">of 4 configured</span>
+                {(isGoogleConnected ? 1 : 0) + (isSlackConnected ? 1 : 0) + (isCustomSmtpConnected ? 1 : 0) + 1} <span className="text-xs font-normal text-slate-500">of 4 configured</span>
               </p>
             </div>
           </div>
@@ -243,19 +270,41 @@ export function IntegrationsView() {
             </div>
             <div className="min-w-0">
               <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Primary Mailbox</p>
-              <p className="text-sm font-bold text-slate-900 truncate mt-0.5" title={sender?.email || user?.email || 'Default'}>
-                {cleanSenderName || (sender?.email ? sender.email.split('@')[0] : 'Oliver Brown')}
-              </p>
-              <p className="text-[11px] text-slate-500 truncate">{sender?.email || user?.email || 'smtp.ethereal.email'}</p>
+              {isGoogleConnected ? (
+                <>
+                  <p className="text-sm font-bold text-slate-900 truncate mt-0.5" title={cleanSenderName}>
+                    {cleanSenderName}
+                  </p>
+                  <p className="text-[11px] text-slate-500 truncate">{sender?.email || user?.email}</p>
+                </>
+              ) : isCustomSmtpConnected ? (
+                <>
+                  <p className="text-sm font-bold text-slate-900 truncate mt-0.5" title={cleanSenderName}>
+                    {cleanSenderName}
+                  </p>
+                  <p className="text-[11px] text-slate-500 truncate">{sender?.smtpUser || sender?.email || user?.email}</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm font-bold text-slate-900 truncate mt-0.5">
+                    ReachInbox Sandbox Relay
+                  </p>
+                  <p className="text-[11px] text-amber-600 font-medium truncate">sandbox@reachinbox.email (Ethereal)</p>
+                </>
+              )}
             </div>
           </div>
           {isGoogleConnected ? (
             <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-50 text-emerald-700 border border-emerald-200/80 shrink-0 ml-2">
               Gmail OAuth2
             </span>
+          ) : isCustomSmtpConnected ? (
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-blue-50 text-blue-700 border border-blue-200/80 shrink-0 ml-2">
+              Custom SMTP
+            </span>
           ) : (
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-slate-100 text-slate-600 shrink-0 ml-2">
-              SMTP Relay
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-amber-50 text-amber-700 border border-amber-200 shrink-0 ml-2">
+              Sandbox Mode
             </span>
           )}
         </div>
@@ -603,9 +652,9 @@ export function IntegrationsView() {
             </div>
           )}
 
-        {/* CARD 3: Sandboxed Ethereal SMTP Relay */}
+        {/* CARD 3: Custom SMTP Mailbox Relay */}
         {(activeCategory === 'all' || activeCategory === 'email' || activeCategory === 'infra') &&
-          matchesSearch('Ethereal Sandboxed SMTP', 'Sandbox SMTP server testing web preview') && (
+          matchesSearch('Custom SMTP Mailbox Relay', 'SMTP server host port password sendgrid ses mailgun ethereal sandbox relay') && (
             <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs hover:border-slate-300 transition-all flex flex-col justify-between overflow-hidden">
               <div className="p-5 sm:p-6 space-y-4">
                 <div className="flex items-start justify-between gap-3">
@@ -615,45 +664,106 @@ export function IntegrationsView() {
                     </div>
                     <div>
                       <h3 className="text-base font-bold text-slate-900">
-                        Ethereal Sandboxed SMTP
+                        Custom SMTP Mailbox Relay
                       </h3>
                       <p className="text-xs text-slate-500 font-medium">
-                        Safe Testing & Delivery Verification
+                        Direct Domain Dispatch & Custom Mail Server
                       </p>
                     </div>
                   </div>
 
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
-                    Active Fallback
-                  </span>
+                  {isCustomSmtpConnected ? (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-[#00873d] border border-emerald-200">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#00a84e] animate-pulse" />
+                      Connected
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                      Sandbox Fallback
+                    </span>
+                  )}
                 </div>
 
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  Development sandbox environment generating temporary Ethereal webmail preview links for safe inspection of cold email bodies, MIME headers, and multipart attachments.
+                  {isCustomSmtpConnected
+                    ? 'Your custom SMTP mail server credentials are authenticated and active. Scheduled emails will be dispatched directly through your verified server.'
+                    : 'Dispatch emails directly through SendGrid, Mailgun, AWS SES, or Gmail App Password. Until configured, ReachInbox safely routes dispatches through Ethereal sandbox with live preview links.'}
                 </p>
 
-                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 space-y-2 text-xs">
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-500">Relay Host:</span>
-                    <span className="font-mono text-slate-800 font-semibold">smtp.ethereal.email:587</span>
+                {isCustomSmtpConnected ? (
+                  <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 space-y-2 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500">Relay Host:</span>
+                      <span className="font-mono text-slate-800 font-semibold">{sender?.smtpHost}:{sender?.smtpPort || 587}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500">Authenticated User:</span>
+                      <span className="font-mono text-slate-800">{sender?.smtpUser || sender?.email}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500">Encryption:</span>
+                      <span className="font-medium text-slate-700">{sender?.smtpPort === 465 ? 'SSL/TLS (Port 465)' : 'STARTTLS (Port 587)'}</span>
+                    </div>
+                    <div className="flex items-center justify-between pt-1 border-t border-slate-200/60">
+                      <span className="text-slate-500">Status:</span>
+                      <span className="inline-flex items-center gap-1 text-emerald-700 font-semibold">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-[#00a84e]" />
+                        Direct Dispatch Ready
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-500">Security:</span>
-                    <span className="font-medium text-slate-700">STARTTLS Encrypted</span>
+                ) : (
+                  <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 space-y-2 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500">Current Relay:</span>
+                      <span className="font-mono text-slate-800 font-semibold">smtp.ethereal.email:587</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500">Mode:</span>
+                      <span className="font-medium text-amber-700">Safe Sandbox (Live Preview Links)</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500">Credentials:</span>
+                      <span className="text-slate-500">None required (Dynamic Ethereal accounts)</span>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-500">Inspection:</span>
-                    <span className="text-emerald-700 font-semibold">Live Web Preview Links Generated</span>
-                  </div>
-                </div>
+                )}
               </div>
 
-              <div className="px-5 sm:px-6 py-3.5 bg-slate-50/70 border-t border-slate-100 flex items-center justify-between">
-                <span className="text-[11px] text-slate-500 font-medium">Pre-configured across all tenants</span>
-                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700">
-                  <Check className="w-3.5 h-3.5 text-[#00a84e]" />
-                  Operational
-                </span>
+              <div className="px-5 sm:px-6 py-3.5 bg-slate-50/70 border-t border-slate-100 flex items-center justify-between gap-3">
+                {isCustomSmtpConnected ? (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={promptDisconnectSmtp}
+                      disabled={disconnectingSmtp}
+                      className="h-8.5 px-3 rounded-xl border-rose-200 text-rose-600 hover:bg-rose-50 text-xs font-semibold gap-1.5"
+                    >
+                      <Unlink className="w-3.5 h-3.5" />
+                      <span>{disconnectingSmtp ? 'Disconnecting...' : 'Disable Service'}</span>
+                    </Button>
+
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setSmtpModalOpen(true)}
+                      className="h-8.5 px-3.5 rounded-xl border-slate-300 text-slate-700 hover:bg-white text-xs font-semibold gap-1.5 shadow-2xs"
+                    >
+                      <Sliders className="w-3.5 h-3.5 text-slate-500" />
+                      <span>Edit Settings</span>
+                    </Button>
+                  </>
+                ) : (
+                  <Button
+                    size="sm"
+                    onClick={() => setSmtpModalOpen(true)}
+                    className="w-full h-9 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs gap-2 shadow-xs transition-all"
+                  >
+                    <Server className="w-4 h-4" />
+                    <span>Configure Custom SMTP Relay</span>
+                  </Button>
+                )}
               </div>
             </div>
           )}
@@ -730,7 +840,7 @@ export function IntegrationsView() {
         confirmText={confirmModal.confirmText}
         cancelText="Cancel"
         variant="danger"
-        isLoading={disconnectingGoogle || disconnectingSlack}
+        isLoading={disconnectingGoogle || disconnectingSlack || disconnectingSmtp}
       >
         {confirmModal.notice && (
           <div className="p-3.5 rounded-xl bg-amber-50/70 border border-amber-200/80 text-xs text-amber-900 leading-relaxed flex items-start gap-2">
@@ -739,6 +849,13 @@ export function IntegrationsView() {
           </div>
         )}
       </ConfirmModal>
+
+      {/* Custom SMTP Configuration Modal */}
+      <SmtpConfigModal
+        isOpen={smtpModalOpen}
+        onClose={() => setSmtpModalOpen(false)}
+        onSaved={loadDashboard}
+      />
     </div>
   );
 }

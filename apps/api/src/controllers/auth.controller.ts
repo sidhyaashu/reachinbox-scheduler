@@ -126,4 +126,77 @@ export class AuthController {
       next(err);
     }
   };
+
+  saveSmtp = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = req.user!.id;
+      const {
+        smtpHost,
+        smtpPort,
+        smtpUser,
+        smtpPass,
+        smtpSecure,
+        name,
+        email,
+        hourlyLimit,
+        minDelaySeconds,
+      } = req.body;
+
+      if (!smtpHost || !smtpPort || !smtpUser || !smtpPass) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'smtpHost, smtpPort, smtpUser, and smtpPass are required',
+          },
+        });
+        return;
+      }
+
+      const sender = await this.authService.saveCustomSmtp(userId, {
+        smtpHost,
+        smtpPort: Number(smtpPort),
+        smtpUser,
+        smtpPass,
+        smtpSecure: Boolean(smtpSecure),
+        name,
+        email: email || smtpUser,
+        hourlyLimit: hourlyLimit ? Number(hourlyLimit) : undefined,
+        minDelaySeconds: minDelaySeconds ? Number(minDelaySeconds) : undefined,
+      });
+
+      res.status(200).json({
+        success: true,
+        data: {
+          message: 'Custom SMTP credentials saved successfully',
+          sender: {
+            id: sender.id,
+            email: sender.email,
+            name: sender.name,
+            smtpHost: sender.smtpHost,
+            smtpPort: sender.smtpPort,
+            smtpUser: sender.smtpUser,
+            hourlyLimit: sender.hourlyLimit,
+            minDelaySeconds: sender.minDelaySeconds,
+            authType: sender.authType,
+          },
+        },
+      });
+    } catch (err) {
+      next(err);
+    }
+  };
+
+  disconnectSmtp = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = req.user!.id;
+      await this.authService.disconnectCustomSmtp(userId);
+      res.status(200).json({
+        success: true,
+        data: { message: 'Custom SMTP disconnected. Reverted to Ethereal sandbox.' },
+      });
+    } catch (err) {
+      next(err);
+    }
+  };
 }

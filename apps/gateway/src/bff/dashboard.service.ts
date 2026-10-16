@@ -63,6 +63,10 @@ export class DashboardBffService {
             hourlyLimit: sender.hourlyLimit,
             minDelaySeconds: sender.minDelaySeconds,
             authType: sender.authType || 'smtp',
+            smtpHost: sender.smtpHost,
+            smtpPort: sender.smtpPort,
+            smtpUser: sender.smtpUser,
+            hasCustomSmtp: Boolean(sender.smtpUser && sender.smtpPass && sender.smtpHost !== 'smtp.ethereal.email'),
           }
         : null,
       stats: {

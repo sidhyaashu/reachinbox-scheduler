@@ -31,9 +31,12 @@ import {
   Mail,
   Layers,
   Trash2,
+  Server,
+  Sparkles,
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
+import { SmtpConfigModal } from './SmtpConfigModal';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import {
   DropdownMenu,
@@ -81,23 +84,27 @@ export function ComposeView() {
   const [subject, setSubject] = useState(() => composeDraft?.subject || '');
   const [body, setBody] = useState(() => composeDraft?.body || '');
   const [selectedSenderEmail, setSelectedSenderEmail] = useState('');
+  const [smtpModalOpen, setSmtpModalOpen] = useState(false);
+
+  // Mailbox verification state: Google OAuth or Custom SMTP credentials
+  const isGoogleConnected = sender?.authType === 'oauth2_google';
+  const isCustomSmtpConnected = Boolean(sender?.hasCustomSmtp);
+  const isMailboxVerified = isGoogleConnected || isCustomSmtpConnected;
 
   // Initial delay & hourly limit from sender or draft or defaults
   const [delaySeconds, setDelaySeconds] = useState(() => composeDraft?.delaySeconds ?? 2);
   const [hourlyLimit, setHourlyLimit] = useState(() => composeDraft?.hourlyLimit ?? 200);
 
-  // Sync sender info once loaded
+  // Sync sender info once loaded - Fall back safely to Sandbox Relay if unverified
   useEffect(() => {
-    if (sender) {
+    if (isMailboxVerified && sender?.email) {
       setSelectedSenderEmail(sender.email);
-      if (sender.minDelaySeconds && !composeDraft) setDelaySeconds(sender.minDelaySeconds);
-      if (sender.hourlyLimit && !composeDraft) setHourlyLimit(sender.hourlyLimit);
-    } else if (user?.email) {
-      setSelectedSenderEmail(user.email);
     } else {
-      setSelectedSenderEmail('outreach@reachinbox.ai');
+      setSelectedSenderEmail('sandbox@reachinbox.email');
     }
-  }, [sender, user, composeDraft]);
+    if (sender?.minDelaySeconds && !composeDraft) setDelaySeconds(sender.minDelaySeconds);
+    if (sender?.hourlyLimit && !composeDraft) setHourlyLimit(sender.hourlyLimit);
+  }, [sender, isMailboxVerified, composeDraft]);
 
   // Send Later Popover state
   const [sendLaterOpen, setSendLaterOpen] = useState(false);
@@ -493,104 +500,196 @@ export function ComposeView() {
               </Tooltip>
             </TooltipProvider>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#f4f6f8] hover:bg-slate-100 border border-transparent hover:border-slate-200 text-xs font-medium text-slate-800 cursor-pointer transition-colors max-w-sm">
-                  {sender?.authType === 'oauth2_google' && (
+                  {isGoogleConnected ? (
                     <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24">
                       <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.66v3.05h3.9c2.28-2.1 3.645-5.2 3.645-9.15z"/>
                       <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.9-3.05c-1.08.72-2.45 1.16-4.03 1.16-3.1 0-5.73-2.1-6.67-4.93H1.28v3.15C3.3 21.36 7.35 24 12 24z"/>
                       <path fill="#FBBC05" d="M5.33 14.28c-.24-.72-.38-1.49-.38-2.28s.14-1.56.38-2.28V6.57H1.28C.46 8.2 0 10.04 0 12s.46 3.8 1.28 5.43l4.05-3.15z"/>
                       <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.35 0 3.3 2.64 1.28 6.57l4.05 3.15c.94-2.83 3.57-4.97 6.67-4.97z"/>
                     </svg>
+                  ) : isCustomSmtpConnected ? (
+                    <Server className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                  ) : (
+                    <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
                   )}
+
                   <div className="flex items-center gap-1.5 truncate">
-                    {cleanSenderName ? (
+                    {isMailboxVerified && sender ? (
                       <>
-                        <span className="font-semibold text-slate-900 truncate">{cleanSenderName}</span>
-                        <span className="text-slate-500 font-normal truncate">&lt;{selectedSenderEmail || 'outreach@reachinbox.ai'}&gt;</span>
+                        <span className="font-semibold text-slate-900 truncate">
+                          {cleanSenderName || (sender.email ? sender.email.split('@')[0] : 'Verified Mailbox')}
+                        </span>
+                        <span className="text-slate-500 font-normal truncate">&lt;{selectedSenderEmail || sender.email}&gt;</span>
                       </>
                     ) : (
-                      <span className="truncate">{selectedSenderEmail || 'outreach@reachinbox.ai'}</span>
+                      <>
+                        <span className="font-semibold text-slate-800 truncate">ReachInbox Sandbox Relay</span>
+                        <span className="text-slate-400 font-normal truncate">&lt;sandbox@reachinbox.email&gt;</span>
+                      </>
                     )}
                   </div>
                   <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0 ml-0.5 cursor-pointer" />
                 </div>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-72 bg-white border border-slate-100 shadow-xl">
-                {senderOptions.map((opt) => (
+
+              <DropdownMenuContent align="start" className="w-80 bg-white border border-slate-100 shadow-xl p-1.5 space-y-1">
+                <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  Active Dispatch Mailbox
+                </div>
+
+                {/* Option 1: Sandbox Relay */}
+                <DropdownMenuItem
+                  onClick={() => setSelectedSenderEmail('sandbox@reachinbox.email')}
+                  className="flex items-center justify-between text-xs cursor-pointer py-2 px-2.5 rounded-lg"
+                >
+                  <div className="flex flex-col truncate pr-2">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-semibold text-slate-900 truncate">ReachInbox Sandbox Relay</span>
+                      <span className="text-[9px] font-semibold bg-amber-50 text-amber-800 px-1.5 py-0.2 rounded border border-amber-200">
+                        Safe Testing
+                      </span>
+                    </div>
+                    <span className="text-[11px] text-slate-400 truncate">smtp.ethereal.email • Web preview link</span>
+                  </div>
+                  {(!isMailboxVerified || selectedSenderEmail === 'sandbox@reachinbox.email') && (
+                    <Check className="w-3.5 h-3.5 text-[#00a84e] shrink-0" />
+                  )}
+                </DropdownMenuItem>
+
+                {/* Option 2: Verified Mailbox if connected */}
+                {isMailboxVerified && sender && (
                   <DropdownMenuItem
-                    key={opt}
-                    onClick={() => setSelectedSenderEmail(opt)}
-                    className="flex items-center justify-between text-xs cursor-pointer py-2"
+                    onClick={() => setSelectedSenderEmail(sender.email)}
+                    className="flex items-center justify-between text-xs cursor-pointer py-2 px-2.5 rounded-lg"
                   >
                     <div className="flex flex-col truncate pr-2">
-                      {cleanSenderName && (opt === selectedSenderEmail || opt === sender?.email) ? (
-                        <>
-                          <span className="font-semibold text-slate-900 truncate">{cleanSenderName}</span>
-                          <span className="text-[11px] text-slate-400 truncate">{opt}</span>
-                        </>
-                      ) : (
-                        <span className="truncate">{opt}</span>
-                      )}
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-semibold text-slate-900 truncate">{cleanSenderName || sender.email}</span>
+                        <span className="text-[9px] font-semibold bg-emerald-50 text-emerald-800 px-1.5 py-0.2 rounded border border-emerald-200">
+                          {isGoogleConnected ? 'Gmail' : 'SMTP'} Verified
+                        </span>
+                      </div>
+                      <span className="text-[11px] text-slate-400 truncate">{sender.email}</span>
                     </div>
-                    {selectedSenderEmail === opt && <Check className="w-3.5 h-3.5 text-[#00a84e] shrink-0" />}
+                    {selectedSenderEmail === sender.email && (
+                      <Check className="w-3.5 h-3.5 text-[#00a84e] shrink-0" />
+                    )}
                   </DropdownMenuItem>
-                ))}
+                )}
+
+                {/* Option 3: User's profile email when NOT verified */}
+                {!isMailboxVerified && user?.email && (
+                  <DropdownMenuItem
+                    onClick={() => setSmtpModalOpen(true)}
+                    className="flex items-center justify-between text-xs cursor-pointer py-2 px-2.5 rounded-lg bg-slate-50/80 border border-dashed border-slate-200 my-0.5"
+                  >
+                    <div className="flex flex-col truncate pr-2">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-semibold text-slate-700 truncate">{user.name || 'Login Account'}</span>
+                        <span className="text-[9px] font-semibold bg-slate-200 text-slate-700 px-1.5 py-0.2 rounded">
+                          Setup Required
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-slate-400 truncate">{user.email} (Requires OAuth/SMTP)</span>
+                    </div>
+                    <span className="text-[10px] text-emerald-600 font-bold hover:underline shrink-0">Connect</span>
+                  </DropdownMenuItem>
+                )}
+
                 <DropdownMenuSeparator className="my-1 bg-slate-100" />
+
+                {/* Quick Connect Actions */}
+                {!isGoogleConnected && (
+                  <DropdownMenuItem
+                    onClick={() => {
+                      window.location.href = `/auth/google?returnTo=${encodeURIComponent('/dashboard?compose=true')}`;
+                    }}
+                    className="flex items-center gap-2 text-xs font-semibold text-[#00873d] hover:bg-emerald-50 cursor-pointer py-2 px-2.5 rounded-lg"
+                  >
+                    <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24">
+                      <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.66v3.05h3.9c2.28-2.1 3.645-5.2 3.645-9.15z"/>
+                      <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.9-3.05c-1.08.72-2.45 1.16-4.03 1.16-3.1 0-5.73-2.1-6.67-4.93H1.28v3.15C3.3 21.36 7.35 24 12 24z"/>
+                      <path fill="#FBBC05" d="M5.33 14.28c-.24-.72-.38-1.49-.38-2.28s.14-1.56.38-2.28V6.57H1.28C.46 8.2 0 10.04 0 12s.46 3.8 1.28 5.43l4.05-3.15z"/>
+                      <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.35 0 3.3 2.64 1.28 6.57l4.05 3.15c.94-2.83 3.57-4.97 6.67-4.97z"/>
+                    </svg>
+                    <span>Connect Gmail via OAuth2</span>
+                  </DropdownMenuItem>
+                )}
+
+                <DropdownMenuItem
+                  onClick={() => setSmtpModalOpen(true)}
+                  className="flex items-center gap-2 text-xs font-semibold text-blue-600 hover:bg-blue-50 cursor-pointer py-2 px-2.5 rounded-lg"
+                >
+                  <Server className="w-3.5 h-3.5 text-blue-600" />
+                  <span>Configure Custom SMTP Mailbox</span>
+                </DropdownMenuItem>
+
                 <DropdownMenuItem
                   onClick={() => {
                     closeCompose();
                     setActiveTab('integrations');
                     router.replace('/dashboard?tab=integrations', { scroll: false });
                   }}
-                  className="flex items-center gap-2 text-xs font-medium text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 cursor-pointer py-2"
+                  className="flex items-center gap-2 text-xs font-medium text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 cursor-pointer py-2 px-2.5 rounded-lg"
                 >
                   <Layers className="w-3.5 h-3.5 text-slate-400" />
-                  <span>Configure SaaS Integrations</span>
+                  <span>Manage SaaS Integrations</span>
                 </DropdownMenuItem>
-                {sender?.authType !== 'oauth2_google' && (
-                  <DropdownMenuItem
-                    onClick={() => {
-                      window.location.href = `/auth/google?returnTo=${encodeURIComponent('/dashboard?compose=true')}`;
-                    }}
-                    className="flex items-center gap-2 text-xs font-semibold text-[#00873d] hover:bg-emerald-50 cursor-pointer py-2"
-                  >
-                    <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24">
-                      <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.66v3.05h3.9c2.28-2.1 3.645-5.2 3.645-9.15z"/>
-                      <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.9-3.05c-1.08.72-2.45 1.16-4.03 1.16-3.1 0-5.73-2.1-6.67-4.93H1.28v3.15C3.3 21.36 7.35 24 12 24z"/>
-                      <path fill="#FBBC05" d="M5.33 14.28c-.24-.72-.38-1.49-.38-2.28s.14-1.56.38-2.28V6.57H1.28C.46 8.2 0 10.04 0 12s.46 3.8 1.28 5.43l4.05-3.15z"/>
-                      <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.35 0 3.3 2.64 1.28 6.57l4.05 3.15c.94-2.83 3.57-4.97 6.67-4.97z"/>
-                    </svg>
-                    <span>+ Connect your Gmail</span>
-                  </DropdownMenuItem>
-                )}
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {sender?.authType === 'oauth2_google' ? (
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-[10px] font-semibold bg-emerald-50 text-[#00873d] border border-emerald-200/70 select-none shadow-2xs" title="Connected directly via Google Gmail OAuth2 (No password needed)">
+            {/* Status Pill Badge */}
+            {isGoogleConnected ? (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-[10px] font-semibold bg-emerald-50 text-[#00873d] border border-emerald-200/70 select-none shadow-2xs" title="Connected directly via Google Gmail OAuth2">
                 <CheckCircle2 className="w-3 h-3 text-[#00a84e]" />
                 Gmail OAuth2
               </span>
+            ) : isCustomSmtpConnected ? (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200/70 select-none shadow-2xs" title={`Connected via custom SMTP (${sender?.smtpHost})`}>
+                <CheckCircle2 className="w-3 h-3 text-blue-600" />
+                Custom SMTP
+              </span>
             ) : (
-              <button
-                type="button"
-                onClick={() => {
-                  window.location.href = `/auth/google?returnTo=${encodeURIComponent('/dashboard?compose=true')}`;
-                }}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-semibold bg-white hover:bg-emerald-50 text-slate-700 hover:text-[#00873d] border border-slate-200 hover:border-emerald-300 transition-all cursor-pointer shadow-xs"
-                title="Connect your Gmail account via Google OAuth2 to send emails directly without passwords"
-              >
-                <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24">
-                  <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.66v3.05h3.9c2.28-2.1 3.645-5.2 3.645-9.15z"/>
-                  <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.9-3.05c-1.08.72-2.45 1.16-4.03 1.16-3.1 0-5.73-2.1-6.67-4.93H1.28v3.15C3.3 21.36 7.35 24 12 24z"/>
-                  <path fill="#FBBC05" d="M5.33 14.28c-.24-.72-.38-1.49-.38-2.28s.14-1.56.38-2.28V6.57H1.28C.46 8.2 0 10.04 0 12s.46 3.8 1.28 5.43l4.05-3.15z"/>
-                  <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.35 0 3.3 2.64 1.28 6.57l4.05 3.15c.94-2.83 3.57-4.97 6.67-4.97z"/>
-                </svg>
-                <span>+ Connect your Gmail</span>
-              </button>
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-[10px] font-semibold bg-amber-50 text-amber-800 border border-amber-200/80 select-none shadow-2xs" title="Currently running in safe sandbox mode with Ethereal SMTP previews. Connect Gmail or custom SMTP to send live outreach.">
+                <Sparkles className="w-3 h-3 text-amber-600" />
+                Sandbox Mode
+              </span>
+            )}
+
+            {/* Quick Connect Action Buttons when unverified */}
+            {!isMailboxVerified && (
+              <div className="flex items-center gap-1.5 ml-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    window.location.href = `/auth/google?returnTo=${encodeURIComponent('/dashboard?compose=true')}`;
+                  }}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-semibold bg-white hover:bg-emerald-50 text-slate-700 hover:text-[#00873d] border border-slate-200 hover:border-emerald-300 transition-all cursor-pointer shadow-xs"
+                  title="Connect your Gmail account via Google OAuth2 to send directly without passwords"
+                >
+                  <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.66v3.05h3.9c2.28-2.1 3.645-5.2 3.645-9.15z"/>
+                    <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.9-3.05c-1.08.72-2.45 1.16-4.03 1.16-3.1 0-5.73-2.1-6.67-4.93H1.28v3.15C3.3 21.36 7.35 24 12 24z"/>
+                    <path fill="#FBBC05" d="M5.33 14.28c-.24-.72-.38-1.49-.38-2.28s.14-1.56.38-2.28V6.57H1.28C.46 8.2 0 10.04 0 12s.46 3.8 1.28 5.43l4.05-3.15z"/>
+                    <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.35 0 3.3 2.64 1.28 6.57l4.05 3.15c.94-2.83 3.57-4.97 6.67-4.97z"/>
+                  </svg>
+                  <span>Connect Gmail</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setSmtpModalOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-semibold bg-white hover:bg-blue-50 text-slate-700 hover:text-blue-700 border border-slate-200 hover:border-blue-300 transition-all cursor-pointer shadow-xs"
+                  title="Configure custom domain SMTP credentials (SendGrid, Mailgun, AWS SES, or Gmail App Password)"
+                >
+                  <Server className="w-3.5 h-3.5 text-blue-600" />
+                  <span>Custom SMTP</span>
+                </button>
+              </div>
             )}
           </div>
         </div>
@@ -1004,6 +1103,12 @@ export function ComposeView() {
           </div>
         )}
       </div>
+
+      {/* Custom SMTP Configuration Modal */}
+      <SmtpConfigModal
+        isOpen={smtpModalOpen}
+        onClose={() => setSmtpModalOpen(false)}
+      />
     </div>
   );
 }

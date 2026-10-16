@@ -263,4 +263,149 @@ export class SenderRepository {
     const res = await query<Sender>(sql, [existing.id]);
     return res.rows[0] || null;
   }
+
+  async saveCustomSmtp(
+    userId: string,
+    config: {
+      smtpHost: string;
+      smtpPort: number;
+      smtpUser: string;
+      smtpPass: string;
+      smtpSecure?: boolean;
+      name?: string;
+      email?: string;
+      hourlyLimit?: number;
+      minDelaySeconds?: number;
+    }
+  ): Promise<Sender> {
+    const existing = await this.findDefaultOrFirstByUserId(userId);
+    if (existing) {
+      const sql = `
+        UPDATE senders
+        SET
+          auth_type = 'smtp',
+          smtp_host = $2,
+          smtp_port = $3,
+          smtp_user = $4,
+          smtp_pass = $5,
+          smtp_secure = $6,
+          name = COALESCE($7, name),
+          email = COALESCE($8, email),
+          hourly_limit = COALESCE($9, hourly_limit),
+          min_delay_seconds = COALESCE($10, min_delay_seconds),
+          google_refresh_token = NULL,
+          google_access_token = NULL,
+          updated_at = NOW()
+        WHERE id = $1
+        RETURNING
+          id,
+          user_id AS "userId",
+          email,
+          name,
+          smtp_host AS "smtpHost",
+          smtp_port AS "smtpPort",
+          smtp_user AS "smtpUser",
+          smtp_pass AS "smtpPass",
+          smtp_secure AS "smtpSecure",
+          hourly_limit AS "hourlyLimit",
+          min_delay_seconds AS "minDelaySeconds",
+          auth_type AS "authType",
+          google_refresh_token AS "googleRefreshToken",
+          google_access_token AS "googleAccessToken",
+          created_at AS "createdAt",
+          updated_at AS "updatedAt";
+      `;
+      const res = await query<Sender>(sql, [
+        existing.id,
+        config.smtpHost || 'smtp.ethereal.email',
+        config.smtpPort || 587,
+        config.smtpUser || '',
+        config.smtpPass || '',
+        config.smtpSecure ?? false,
+        config.name || null,
+        config.email || null,
+        config.hourlyLimit || 200,
+        config.minDelaySeconds || 2,
+      ]);
+      const sender = res.rows[0];
+      if (!sender) throw new Error('[SenderRepository] Failed to update SMTP sender.');
+      return sender;
+    }
+
+    const insertSql = `
+      INSERT INTO senders (
+        user_id, email, name, auth_type, smtp_host, smtp_port, smtp_user,
+        smtp_pass, smtp_secure, hourly_limit, min_delay_seconds
+      )
+      VALUES ($1, $2, $3, 'smtp', $4, $5, $6, $7, $8, $9, $10)
+      RETURNING
+        id,
+        user_id AS "userId",
+        email,
+        name,
+        smtp_host AS "smtpHost",
+        smtp_port AS "smtpPort",
+        smtp_user AS "smtpUser",
+        smtp_pass AS "smtpPass",
+        smtp_secure AS "smtpSecure",
+        hourly_limit AS "hourlyLimit",
+        min_delay_seconds AS "minDelaySeconds",
+        auth_type AS "authType",
+        google_refresh_token AS "googleRefreshToken",
+        google_access_token AS "googleAccessToken",
+        created_at AS "createdAt",
+        updated_at AS "updatedAt";
+    `;
+    const res = await query<Sender>(insertSql, [
+      userId,
+      config.email || 'outreach@reachinbox.ai',
+      config.name || 'Custom Mailbox',
+      config.smtpHost || 'smtp.ethereal.email',
+      config.smtpPort || 587,
+      config.smtpUser || '',
+      config.smtpPass || '',
+      config.smtpSecure ?? false,
+      config.hourlyLimit || 200,
+      config.minDelaySeconds || 2,
+    ]);
+    const sender = res.rows[0];
+    if (!sender) throw new Error('[SenderRepository] Failed to create SMTP sender.');
+    return sender;
+  }
+
+  async disconnectCustomSmtp(userId: string): Promise<Sender | null> {
+    const existing = await this.findDefaultOrFirstByUserId(userId);
+    if (!existing) return null;
+    const sql = `
+      UPDATE senders
+      SET
+        auth_type = 'smtp',
+        smtp_host = 'smtp.ethereal.email',
+        smtp_port = 587,
+        smtp_user = '',
+        smtp_pass = '',
+        smtp_secure = false,
+        updated_at = NOW()
+      WHERE id = $1
+      RETURNING
+        id,
+        user_id AS "userId",
+        email,
+        name,
+        smtp_host AS "smtpHost",
+        smtp_port AS "smtpPort",
+        smtp_user AS "smtpUser",
+        smtp_pass AS "smtpPass",
+        smtp_secure AS "smtpSecure",
+        hourly_limit AS "hourlyLimit",
+        min_delay_seconds AS "minDelaySeconds",
+        auth_type AS "authType",
+        google_refresh_token AS "googleRefreshToken",
+        google_access_token AS "googleAccessToken",
+        created_at AS "createdAt",
+        updated_at AS "updatedAt";
+    `;
+    const res = await query<Sender>(sql, [existing.id]);
+    return res.rows[0] || null;
+  }
 }

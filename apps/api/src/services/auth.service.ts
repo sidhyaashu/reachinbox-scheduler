@@ -142,4 +142,25 @@ export class AuthService {
   async disconnectGoogle(userId: string) {
     return this.senderRepo.disconnectGoogleOAuth(userId);
   }
+
+  async saveCustomSmtp(
+    userId: string,
+    data: {
+      smtpHost: string;
+      smtpPort: number;
+      smtpUser: string;
+      smtpPass: string;
+      smtpSecure?: boolean;
+      name?: string;
+      email?: string;
+      hourlyLimit?: number;
+      minDelaySeconds?: number;
+    }
+  ) {
+    return this.senderRepo.saveCustomSmtp(userId, data);
+  }
+
+  async disconnectCustomSmtp(userId: string) {
+    return this.senderRepo.disconnectCustomSmtp(userId);
+  }
 }

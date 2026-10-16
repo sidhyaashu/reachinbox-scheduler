@@ -39,6 +39,10 @@ export interface DashboardSummary {
     hourlyLimit: number;
     minDelaySeconds: number;
     authType?: 'smtp' | 'oauth2_google';
+    smtpHost?: string;
+    smtpPort?: number;
+    smtpUser?: string;
+    hasCustomSmtp?: boolean;
   } | null;
   stats: {
     totalScheduled: number;
@@ -286,6 +290,27 @@ export const apiClient = {
     },
     async disconnectGoogle(): Promise<{ message: string }> {
       return request<{ message: string }>('/auth/google/disconnect', {
+        method: 'POST',
+      });
+    },
+    async saveSmtp(config: {
+      smtpHost: string;
+      smtpPort: number;
+      smtpUser: string;
+      smtpPass: string;
+      smtpSecure?: boolean;
+      name?: string;
+      email?: string;
+      hourlyLimit?: number;
+      minDelaySeconds?: number;
+    }): Promise<{ success: boolean; data: { message: string; sender: any } }> {
+      return request('/auth/smtp/save', {
+        method: 'POST',
+        data: config,
+      });
+    },
+    async disconnectSmtp(): Promise<{ message: string }> {
+      return request<{ message: string }>('/auth/smtp/disconnect', {
         method: 'POST',
       });
     },

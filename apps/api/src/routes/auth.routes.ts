@@ -17,6 +17,8 @@ export function createAuthRouter(controller: AuthController = new AuthController
   router.get('/me', authMiddleware, controller.me);
   router.post('/logout', controller.logout);
   router.post('/google/disconnect', authMiddleware, controller.disconnectGoogle);
+  router.post('/smtp/save', authMiddleware, controller.saveSmtp);
+  router.post('/smtp/disconnect', authMiddleware, controller.disconnectSmtp);
 
   return router;
 }
