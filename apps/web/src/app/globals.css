@@ -48,6 +48,12 @@
   }
 }
 
+/* Hide native Edge / IE password reveal & clear icons */
+input::-ms-reveal,
+input::-ms-clear {
+  display: none !important;
+}
+
 /* Custom smooth scrollbar */
 ::-webkit-scrollbar {
   width: 6px;

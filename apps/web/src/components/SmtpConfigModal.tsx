@@ -36,9 +36,11 @@ export function SmtpConfigModal({ isOpen, onClose, onSaved }: SmtpConfigModalPro
   const [showPassword, setShowPassword] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Initialize form when modal opens
+  const prevOpenRef = React.useRef(false);
+
+  // Initialize form ONLY once when modal opens (never on background 2.5s polls)
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !prevOpenRef.current) {
       setFromName(sender?.name || user?.name || '');
       setFromEmail(sender?.email || user?.email || '');
       setSmtpUser(sender?.smtpUser || sender?.email || user?.email || '');
@@ -48,6 +50,7 @@ export function SmtpConfigModal({ isOpen, onClose, onSaved }: SmtpConfigModalPro
       setSmtpPass('');
       setShowPassword(false);
     }
+    prevOpenRef.current = isOpen;
   }, [isOpen, sender, user]);
 
   const handleApplyPreset = (preset: 'gmail' | 'sendgrid' | 'mailgun' | 'ses') => {
@@ -230,14 +233,17 @@ export function SmtpConfigModal({ isOpen, onClose, onSaved }: SmtpConfigModalPro
                   type={showPassword ? 'text' : 'password'}
                   value={smtpPass}
                   onChange={(e) => setSmtpPass(e.target.value)}
-                  placeholder="••••••••••••"
+                  placeholder="Enter 16-character app password"
                   required
-                  className="h-8.5 text-xs font-mono pr-8 rounded-xl"
+                  autoComplete="new-password"
+                  className="h-8.5 text-xs font-mono pr-9 rounded-xl [&::-ms-reveal]:hidden [&::-ms-clear]:hidden"
                 />
                 <button
                   type="button"
+                  tabIndex={-1}
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer transition-colors"
+                  title={showPassword ? 'Hide password' : 'Show password'}
                 >
                   {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                 </button>
