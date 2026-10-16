@@ -101,10 +101,28 @@ function DashboardContent() {
   useEffect(() => {
     const state = useSchedulerStore.getState();
 
+    // Cross-routing reconciliation between tab and status:
+    // If status is SENT or FAILED, active tab MUST be sent.
+    // If status is SCHEDULED or PROCESSING, active tab MUST be scheduled.
+    let resolvedTab = urlTab;
+    if ((urlStatus === 'SENT' || urlStatus === 'FAILED') && urlTab === 'scheduled') {
+      resolvedTab = 'sent';
+    } else if ((urlStatus === 'SCHEDULED' || urlStatus === 'PROCESSING') && urlTab === 'sent') {
+      resolvedTab = 'scheduled';
+    }
+
+    // If resolved tab differs from urlTab, normalize URL cleanly without scroll
+    if (resolvedTab && resolvedTab !== urlTab) {
+      const params = new URLSearchParams(window.location.search);
+      params.set('tab', resolvedTab);
+      router.replace(`/dashboard?${params.toString()}`, { scroll: false });
+    }
+
     // 1. Sync tab
-    if (urlTab && ['scheduled', 'sent', 'archive', 'drafts', 'trash', 'integrations'].includes(urlTab)) {
-      if (state.activeTab !== urlTab) {
-        state.setActiveTab(urlTab as any);
+    const effectiveTab = resolvedTab || urlTab;
+    if (effectiveTab && ['scheduled', 'sent', 'archive', 'drafts', 'trash', 'integrations'].includes(effectiveTab)) {
+      if (state.activeTab !== effectiveTab) {
+        state.setActiveTab(effectiveTab as any);
       }
     }
 
@@ -134,14 +152,22 @@ function DashboardContent() {
     } else if (!urlStatus && state.filterStatus !== 'ALL') {
       state.setFilterStatus('ALL');
     }
-  }, [urlTab, urlCompose, urlEmailId, urlStatus]);
+  }, [urlTab, urlCompose, urlEmailId, urlStatus, router]);
 
   // 4. Handle browser Back/Forward buttons via popstate without triggering Next.js full-page reloads
   useEffect(() => {
     const handlePopState = () => {
       const state = useSchedulerStore.getState();
       const params = new URLSearchParams(window.location.search);
-      const tab = params.get('tab') as any;
+      let tab = params.get('tab') as any;
+      const status = params.get('status') as any;
+
+      if ((status === 'SENT' || status === 'FAILED') && tab === 'scheduled') {
+        tab = 'sent';
+      } else if ((status === 'SCHEDULED' || status === 'PROCESSING') && tab === 'sent') {
+        tab = 'scheduled';
+      }
+
       if (tab && ['scheduled', 'sent', 'archive', 'drafts', 'trash', 'integrations'].includes(tab)) {
         state.setActiveTab(tab);
       }
@@ -158,7 +184,6 @@ function DashboardContent() {
       } else {
         state.closeDetail();
       }
-      const status = params.get('status') as any;
       if (status && ['ALL', 'SCHEDULED', 'PROCESSING', 'SENT', 'FAILED'].includes(status)) {
         state.setFilterStatus(status);
       } else {
@@ -626,42 +651,119 @@ function DashboardContent() {
                     <Filter className="w-4 h-4" />
                   </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-44 bg-white border border-slate-100 shadow-xl">
+                <DropdownMenuContent align="end" className="w-52 bg-white border border-slate-100 shadow-xl p-1.5 rounded-xl">
+                  {/* Current Tab Header */}
+                  <div className="px-2 py-1 text-[10px] font-semibold tracking-wider text-slate-400 uppercase select-none">
+                    {activeTab === 'sent' ? 'Sent Folder Filters' : 'Scheduled Queue Filters'}
+                  </div>
+
                   <DropdownMenuItem
                     onClick={() => handleFilterChange('ALL')}
-                    className="flex items-center justify-between text-xs cursor-pointer"
+                    className="flex items-center justify-between text-xs cursor-pointer rounded-lg px-2 py-1.5"
                   >
-                    <span>All Statuses</span>
+                    <span>{activeTab === 'sent' ? 'All Sent Statuses' : 'All Scheduled Statuses'}</span>
                     {filterStatus === 'ALL' && <Check className="w-3.5 h-3.5 text-[#00a84e]" />}
                   </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => handleFilterChange('SCHEDULED')}
-                    className="flex items-center justify-between text-xs cursor-pointer"
-                  >
-                    <span>Scheduled</span>
-                    {filterStatus === 'SCHEDULED' && <Check className="w-3.5 h-3.5 text-[#00a84e]" />}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => handleFilterChange('SENT')}
-                    className="flex items-center justify-between text-xs cursor-pointer"
-                  >
-                    <span>Sent</span>
-                    {filterStatus === 'SENT' && <Check className="w-3.5 h-3.5 text-[#00a84e]" />}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => handleFilterChange('PROCESSING')}
-                    className="flex items-center justify-between text-xs cursor-pointer"
-                  >
-                    <span>Processing</span>
-                    {filterStatus === 'PROCESSING' && <Check className="w-3.5 h-3.5 text-[#00a84e]" />}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => handleFilterChange('FAILED')}
-                    className="flex items-center justify-between text-xs cursor-pointer"
-                  >
-                    <span>Failed</span>
-                    {filterStatus === 'FAILED' && <Check className="w-3.5 h-3.5 text-[#00a84e]" />}
-                  </DropdownMenuItem>
+
+                  {activeTab === 'sent' ? (
+                    <>
+                      <DropdownMenuItem
+                        onClick={() => handleFilterChange('SENT')}
+                        className="flex items-center justify-between text-xs cursor-pointer rounded-lg px-2 py-1.5"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-[#00a84e]" />
+                          <span>Sent / Delivered</span>
+                        </div>
+                        {filterStatus === 'SENT' && <Check className="w-3.5 h-3.5 text-[#00a84e]" />}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => handleFilterChange('FAILED')}
+                        className="flex items-center justify-between text-xs cursor-pointer rounded-lg px-2 py-1.5"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-rose-500" />
+                          <span>Failed</span>
+                        </div>
+                        {filterStatus === 'FAILED' && <Check className="w-3.5 h-3.5 text-[#00a84e]" />}
+                      </DropdownMenuItem>
+
+                      {/* Cross-Folder Shortcuts */}
+                      <div className="my-1 border-t border-slate-100" />
+                      <div className="px-2 py-0.5 text-[10px] font-semibold text-slate-400 uppercase select-none">
+                        Cross-Folder Shortcuts
+                      </div>
+                      <DropdownMenuItem
+                        onClick={() => handleFilterChange('SCHEDULED')}
+                        className="flex items-center justify-between text-xs cursor-pointer text-slate-600 hover:text-slate-900 rounded-lg px-2 py-1.5"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-amber-400" />
+                          <span>Scheduled Queue</span>
+                        </div>
+                        <span className="text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded font-medium">Switch tab</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => handleFilterChange('PROCESSING')}
+                        className="flex items-center justify-between text-xs cursor-pointer text-slate-600 hover:text-slate-900 rounded-lg px-2 py-1.5"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-blue-400" />
+                          <span>Processing Queue</span>
+                        </div>
+                        <span className="text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded font-medium">Switch tab</span>
+                      </DropdownMenuItem>
+                    </>
+                  ) : (
+                    <>
+                      <DropdownMenuItem
+                        onClick={() => handleFilterChange('SCHEDULED')}
+                        className="flex items-center justify-between text-xs cursor-pointer rounded-lg px-2 py-1.5"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-amber-400" />
+                          <span>Scheduled</span>
+                        </div>
+                        {filterStatus === 'SCHEDULED' && <Check className="w-3.5 h-3.5 text-[#00a84e]" />}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => handleFilterChange('PROCESSING')}
+                        className="flex items-center justify-between text-xs cursor-pointer rounded-lg px-2 py-1.5"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-blue-400" />
+                          <span>Processing</span>
+                        </div>
+                        {filterStatus === 'PROCESSING' && <Check className="w-3.5 h-3.5 text-[#00a84e]" />}
+                      </DropdownMenuItem>
+
+                      {/* Cross-Folder Shortcuts */}
+                      <div className="my-1 border-t border-slate-100" />
+                      <div className="px-2 py-0.5 text-[10px] font-semibold text-slate-400 uppercase select-none">
+                        Cross-Folder Shortcuts
+                      </div>
+                      <DropdownMenuItem
+                        onClick={() => handleFilterChange('SENT')}
+                        className="flex items-center justify-between text-xs cursor-pointer text-slate-600 hover:text-slate-900 rounded-lg px-2 py-1.5"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-[#00a84e]" />
+                          <span>Sent Emails</span>
+                        </div>
+                        <span className="text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded font-medium">Switch tab</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => handleFilterChange('FAILED')}
+                        className="flex items-center justify-between text-xs cursor-pointer text-slate-600 hover:text-slate-900 rounded-lg px-2 py-1.5"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-rose-500" />
+                          <span>Failed Emails</span>
+                        </div>
+                        <span className="text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded font-medium">Switch tab</span>
+                      </DropdownMenuItem>
+                    </>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
 

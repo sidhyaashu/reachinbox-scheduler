@@ -133,9 +133,15 @@ export function EmailList() {
     }
     rawList = combined;
   } else if (activeTab === 'scheduled') {
-    rawList = scheduledEmails.filter(
-      (e) => !archivedEmailIds.includes(e.id) && !trashedEmailIds.includes(e.id)
-    );
+    if (filterStatus === 'SENT' || filterStatus === 'FAILED') {
+      rawList = sentEmails.filter(
+        (e) => !archivedEmailIds.includes(e.id) && !trashedEmailIds.includes(e.id)
+      );
+    } else {
+      rawList = scheduledEmails.filter(
+        (e) => !archivedEmailIds.includes(e.id) && !trashedEmailIds.includes(e.id)
+      );
+    }
   } else if (activeTab === 'drafts') {
     if (hasDraftContent(composeDraft)) {
       rawList = [
@@ -157,9 +163,15 @@ export function EmailList() {
       rawList = [];
     }
   } else {
-    rawList = sentEmails.filter(
-      (e) => !archivedEmailIds.includes(e.id) && !trashedEmailIds.includes(e.id)
-    );
+    if (filterStatus === 'SCHEDULED' || filterStatus === 'PROCESSING') {
+      rawList = scheduledEmails.filter(
+        (e) => !archivedEmailIds.includes(e.id) && !trashedEmailIds.includes(e.id)
+      );
+    } else {
+      rawList = sentEmails.filter(
+        (e) => !archivedEmailIds.includes(e.id) && !trashedEmailIds.includes(e.id)
+      );
+    }
   }
 
   const baseList = searchResults !== null ? searchResults : rawList;
