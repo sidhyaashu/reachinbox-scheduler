@@ -74,8 +74,18 @@ export class EmailProcessor {
       return { status: 'DEFERRED' };
     }
 
-    // 4. Mark status as PROCESSING in DB
-    await this.emailRepo.updateStatus(data.emailId, ['QUEUED', 'SCHEDULED', 'DEFERRED'], 'PROCESSING');
+    // 4. Mark status as PROCESSING in DB (Atomic Compare-And-Swap Claim)
+    const claimed = await this.emailRepo.updateStatus(
+      data.emailId,
+      ['QUEUED', 'SCHEDULED', 'DEFERRED'],
+      'PROCESSING'
+    );
+    if (!claimed) {
+      console.warn(
+        `[EmailProcessor] Email ${data.emailId} could not be transitioned to PROCESSING. Already claimed by another worker or status changed. Skipping.`
+      );
+      return { status: 'SKIPPED_ALREADY_CLAIMED' };
+    }
 
     try {
       // 5. Enforce minimum inter-send spacing delay across workers
