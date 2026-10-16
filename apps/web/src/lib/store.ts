@@ -320,6 +320,26 @@ export const useSchedulerStore = create<SchedulerState>((set, get) => ({
       scheduledAt: draft.scheduledAt !== undefined ? draft.scheduledAt : existing.scheduledAt,
     };
     const valid = hasDraftContent(updated);
+
+    // Guard against redundant state updates: if already identical, do nothing
+    const current = get().composeDraft;
+    if (
+      valid &&
+      current &&
+      current.subject === updated.subject &&
+      current.body === updated.body &&
+      current.delaySeconds === updated.delaySeconds &&
+      current.hourlyLimit === updated.hourlyLimit &&
+      current.scheduledAt === updated.scheduledAt &&
+      current.recipients.length === updated.recipients.length &&
+      current.recipients.every((r, idx) => r === updated.recipients[idx])
+    ) {
+      return;
+    }
+    if (!valid && !current) {
+      return;
+    }
+
     if (typeof window !== 'undefined') {
       if (valid) {
         localStorage.setItem('reachinbox_compose_draft', JSON.stringify(updated));

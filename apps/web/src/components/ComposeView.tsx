@@ -127,10 +127,10 @@ export function ComposeView() {
         hourlyLimit,
         scheduledAt,
       });
-    } else if (composeDraft) {
+    } else if (useSchedulerStore.getState().composeDraft) {
       clearComposeDraft();
     }
-  }, [recipients, subject, body, delaySeconds, hourlyLimit, scheduledAt, setComposeDraft, clearComposeDraft, composeDraft]);
+  }, [recipients, subject, body, delaySeconds, hourlyLimit, scheduledAt, setComposeDraft, clearComposeDraft]);
 
   const handleDiscard = () => {
     clearComposeDraft();
@@ -160,6 +160,9 @@ export function ComposeView() {
     router.replace(`/dashboard?tab=${activeTab}`, { scroll: false });
   };
 
+  const handleBackRef = useRef(handleBack);
+  handleBackRef.current = handleBack;
+
   // Keyboard shortcut: Escape to close Send Later popover or return to email list
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -167,13 +170,13 @@ export function ComposeView() {
         if (sendLaterOpen) {
           setSendLaterOpen(false);
         } else {
-          handleBack();
+          handleBackRef.current();
         }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [sendLaterOpen, recipients, subject, body, delaySeconds, hourlyLimit, scheduledAt, activeTab]);
+  }, [sendLaterOpen]);
 
   // Real attachments state
   const [attachment, setAttachment] = useState<AttachmentFile | null>(null);
