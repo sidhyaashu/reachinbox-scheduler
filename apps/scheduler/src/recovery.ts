@@ -5,6 +5,15 @@ export async function runStartupReconciliation(
 ): Promise<number> {
   console.log('[Scheduler Recovery] Running startup outbox reconciliation...');
   try {
+    // 1. Reset any in-flight 'PROCESSING' events that were interrupted by a server restart back to 'PENDING'
+    const resetCount = await outboxRepo.reconcileInFlightEvents();
+    if (resetCount > 0) {
+      console.log(
+        `[Scheduler Recovery] Recovered ${resetCount} interrupted in-flight outbox event(s) and restored to PENDING.`
+      );
+    }
+
+    // 2. Count total pending events ready for dispatch
     const pendingCount = await outboxRepo.getPendingCount();
     if (pendingCount > 0) {
       console.log(
@@ -19,3 +28,4 @@ export async function runStartupReconciliation(
     throw err;
   }
 }
+

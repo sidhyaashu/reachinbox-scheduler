@@ -44,7 +44,8 @@ export const BaseConfigSchema = z.object({
   WORKER_PORT: z.coerce.number().default(4003),
   SEARCH_PORT: z.coerce.number().default(4004),
 
-  // Worker Settings
+  // Worker & Scheduler Settings
+  SCHEDULER_CONCURRENCY: z.coerce.number().int().min(1).max(50).default(10),
   WORKER_CONCURRENCY: z.coerce.number().int().min(1).max(50).default(5),
   MIN_INTER_SEND_DELAY_SECONDS: z.coerce.number().int().min(0).default(2),
   DEFAULT_HOURLY_LIMIT: z.coerce.number().int().min(1).default(200),

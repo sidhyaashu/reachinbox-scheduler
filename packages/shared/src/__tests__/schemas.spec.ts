@@ -73,6 +73,7 @@ describe('Shared Config Validation', () => {
     const config = validateConfig(BaseConfigSchema, {});
     expect(config.PGPORT).toBe(5432);
     expect(config.REDIS_PORT).toBe(6379);
+    expect(config.SCHEDULER_CONCURRENCY).toBe(10);
     expect(config.WORKER_CONCURRENCY).toBe(5);
     expect(config.EMAIL_QUEUE_NAME).toBe('reachinbox-email-queue');
   });

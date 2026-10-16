@@ -5,6 +5,35 @@ import type { OutboxEvent } from '@reachinbox/shared';
 export interface DispatcherOptions {
   pollIntervalMs?: number;
   batchSize?: number;
+  concurrency?: number;
+}
+
+/**
+ * Concurrency limiter that processes items concurrently up to a specified limit.
+ * Prevents exhausting database connection pools and message brokers.
+ */
+export async function mapConcurrent<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T) => Promise<R>
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let nextIndex = 0;
+
+  const worker = async () => {
+    while (nextIndex < items.length) {
+      const idx = nextIndex++;
+      const item = items[idx];
+      if (item !== undefined) {
+        results[idx] = await fn(item);
+      }
+    }
+  };
+
+  const poolSize = Math.max(1, Math.min(limit, items.length));
+  const workers = Array.from({ length: poolSize }, () => worker());
+  await Promise.all(workers);
+  return results;
 }
 
 export class OutboxDispatcher {
@@ -50,8 +79,9 @@ export class OutboxDispatcher {
   }
 
   /**
-   * Fetches and dispatches a single batch of outbox events.
-   * Concurrency-safe via SKIP LOCKED.
+   * Fetches, claims, and dispatches a single batch of outbox events.
+   * Concurrency-safe across multiple scheduler instances via CTE FOR UPDATE SKIP LOCKED.
+   * Dispatches events with bounded concurrency to protect DB connection pools and Redis.
    */
   public async processBatch(): Promise<number> {
     if (this.isProcessing) return 0;
@@ -59,13 +89,14 @@ export class OutboxDispatcher {
 
     try {
       const batchSize = this.options.batchSize || 100;
-      const events: OutboxEvent[] = await this.outboxRepo.fetchPendingEvents(batchSize);
+      const concurrency = Math.max(1, this.options.concurrency || 10);
+      const events: OutboxEvent[] = await this.outboxRepo.fetchAndClaimPendingEvents(batchSize);
 
       if (events.length === 0) {
         return 0;
       }
 
-      await Promise.all(events.map((event) => this.dispatchEvent(event)));
+      await mapConcurrent(events, concurrency, (event) => this.dispatchEvent(event));
 
       return events.length;
     } finally {

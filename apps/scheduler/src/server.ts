@@ -14,6 +14,7 @@ const app = express();
 const dispatcher = new OutboxDispatcher(undefined, undefined, {
   pollIntervalMs: config.OUTBOX_POLL_INTERVAL_MS,
   batchSize: config.OUTBOX_BATCH_SIZE,
+  concurrency: config.SCHEDULER_CONCURRENCY,
 });
 
 // Health check routes

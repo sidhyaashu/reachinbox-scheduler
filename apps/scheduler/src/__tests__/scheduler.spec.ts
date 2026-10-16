@@ -12,7 +12,9 @@ describe('OutboxDispatcher & Scheduler', () => {
     vi.restoreAllMocks();
 
     mockOutboxRepo = {
+      fetchAndClaimPendingEvents: vi.fn(),
       fetchPendingEvents: vi.fn(),
+      reconcileInFlightEvents: vi.fn().mockResolvedValue(0),
       markDispatched: vi.fn().mockResolvedValue(undefined),
       markFailed: vi.fn().mockResolvedValue(undefined),
       getPendingCount: vi.fn().mockResolvedValue(0),
@@ -25,6 +27,7 @@ describe('OutboxDispatcher & Scheduler', () => {
     dispatcher = new OutboxDispatcher(mockOutboxRepo, mockEmailRepo, {
       pollIntervalMs: 100,
       batchSize: 10,
+      concurrency: 5,
     });
   });
 
@@ -45,12 +48,12 @@ describe('OutboxDispatcher & Scheduler', () => {
         subject: 'Hello',
         scheduledAt: futureTime,
       },
-      status: 'PENDING' as const,
+      status: 'PROCESSING' as const,
       retryCount: 0,
       createdAt: new Date(),
     };
 
-    mockOutboxRepo.fetchPendingEvents.mockResolvedValueOnce([mockEvent]);
+    mockOutboxRepo.fetchAndClaimPendingEvents.mockResolvedValueOnce([mockEvent]);
 
     const count = await dispatcher.processBatch();
 
@@ -85,12 +88,12 @@ describe('OutboxDispatcher & Scheduler', () => {
         subject: 'Immediate Send',
         scheduledAt: pastTime,
       },
-      status: 'PENDING' as const,
+      status: 'PROCESSING' as const,
       retryCount: 0,
       createdAt: new Date(),
     };
 
-    mockOutboxRepo.fetchPendingEvents.mockResolvedValueOnce([mockEvent]);
+    mockOutboxRepo.fetchAndClaimPendingEvents.mockResolvedValueOnce([mockEvent]);
 
     await dispatcher.processBatch();
 
@@ -106,12 +109,12 @@ describe('OutboxDispatcher & Scheduler', () => {
       aggregateId: 'email-corrupted',
       eventType: 'EMAIL_SCHEDULED',
       payload: {}, // Missing required fields
-      status: 'PENDING' as const,
+      status: 'PROCESSING' as const,
       retryCount: 0,
       createdAt: new Date(),
     };
 
-    mockOutboxRepo.fetchPendingEvents.mockResolvedValueOnce([mockCorruptedEvent]);
+    mockOutboxRepo.fetchAndClaimPendingEvents.mockResolvedValueOnce([mockCorruptedEvent]);
 
     await dispatcher.processBatch();
 
@@ -119,9 +122,62 @@ describe('OutboxDispatcher & Scheduler', () => {
     expect(mockOutboxRepo.markDispatched).not.toHaveBeenCalled();
   });
 
-  it('reconciles pending count correctly during startup', async () => {
+  it('reconciles in-flight and pending count correctly during startup', async () => {
+    mockOutboxRepo.reconcileInFlightEvents.mockResolvedValueOnce(3);
     mockOutboxRepo.getPendingCount.mockResolvedValueOnce(5);
+
     const count = await runStartupReconciliation(mockOutboxRepo);
+
+    expect(mockOutboxRepo.reconcileInFlightEvents).toHaveBeenCalledTimes(1);
+    expect(mockOutboxRepo.getPendingCount).toHaveBeenCalledTimes(1);
     expect(count).toBe(5);
+  });
+
+  it('enforces concurrency limit when dispatching batch of outbox events', async () => {
+    let activeDispatches = 0;
+    let peakConcurrency = 0;
+    const concurrencyLimit = 3;
+
+    vi.spyOn(queueModule, 'addEmailJob').mockImplementation(async () => {
+      activeDispatches++;
+      if (activeDispatches > peakConcurrency) {
+        peakConcurrency = activeDispatches;
+      }
+      // Small simulated async work
+      await new Promise((r) => setTimeout(r, 15));
+      activeDispatches--;
+      return 'job-concurrent';
+    });
+
+    const mockEvents = Array.from({ length: 12 }, (_, i) => ({
+      id: `event-${i}`,
+      aggregateType: 'EMAIL',
+      aggregateId: `email-${i}`,
+      eventType: 'EMAIL_SCHEDULED',
+      payload: {
+        emailId: `email-${i}`,
+        userId: 'user-1',
+        senderId: 'sender-1',
+        recipient: `lead-${i}@example.com`,
+        subject: `Test ${i}`,
+        scheduledAt: new Date().toISOString(),
+      },
+      status: 'PROCESSING' as const,
+      retryCount: 0,
+      createdAt: new Date(),
+    }));
+
+    mockOutboxRepo.fetchAndClaimPendingEvents.mockResolvedValueOnce(mockEvents);
+
+    const concurrentDispatcher = new OutboxDispatcher(mockOutboxRepo, mockEmailRepo, {
+      batchSize: 20,
+      concurrency: concurrencyLimit,
+    });
+
+    const processed = await concurrentDispatcher.processBatch();
+
+    expect(processed).toBe(12);
+    expect(peakConcurrency).toBeLessThanOrEqual(concurrencyLimit);
+    expect(mockOutboxRepo.markDispatched).toHaveBeenCalledTimes(12);
   });
 });

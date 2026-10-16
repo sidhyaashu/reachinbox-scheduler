@@ -4,29 +4,38 @@ import type { OutboxEvent } from '@reachinbox/shared';
 
 export class OutboxRepository {
   /**
-   * Fetches pending outbox events using FOR UPDATE SKIP LOCKED
-   * to prevent duplicate dispatches when multiple scheduler instances run.
+   * Atomically selects and claims pending outbox events using FOR UPDATE SKIP LOCKED
+   * and immediately transitions their status to 'PROCESSING' in a single CTE statement.
+   * This guarantees that concurrent scheduler workers/replicas never select the same events,
+   * even across multiple independent processes.
    */
-  async fetchPendingEvents(
+  async fetchAndClaimPendingEvents(
     limit: number = 100,
     client?: PoolClient
   ): Promise<OutboxEvent[]> {
     const sql = `
-      SELECT
-        id,
-        aggregate_type AS "aggregateType",
-        aggregate_id AS "aggregateId",
-        event_type AS "eventType",
-        payload,
-        status,
-        retry_count AS "retryCount",
-        dispatched_at AS "dispatchedAt",
-        created_at AS "createdAt"
-      FROM outbox_events
-      WHERE status = 'PENDING'
-      ORDER BY created_at ASC
-      LIMIT $1
-      FOR UPDATE SKIP LOCKED;
+      WITH claimed AS (
+        SELECT id
+        FROM outbox_events
+        WHERE status = 'PENDING'
+        ORDER BY created_at ASC
+        LIMIT $1
+        FOR UPDATE SKIP LOCKED
+      )
+      UPDATE outbox_events o
+      SET status = 'PROCESSING'
+      FROM claimed c
+      WHERE o.id = c.id
+      RETURNING
+        o.id,
+        o.aggregate_type AS "aggregateType",
+        o.aggregate_id AS "aggregateId",
+        o.event_type AS "eventType",
+        o.payload,
+        o.status,
+        o.retry_count AS "retryCount",
+        o.dispatched_at AS "dispatchedAt",
+        o.created_at AS "createdAt";
     `;
 
     if (client) {
@@ -38,6 +47,34 @@ export class OutboxRepository {
       const res = await txClient.query<OutboxEvent>(sql, [limit]);
       return res.rows;
     });
+  }
+
+  /**
+   * Compatibility alias for fetchAndClaimPendingEvents.
+   */
+  async fetchPendingEvents(
+    limit: number = 100,
+    client?: PoolClient
+  ): Promise<OutboxEvent[]> {
+    return this.fetchAndClaimPendingEvents(limit, client);
+  }
+
+  /**
+   * Reconciles in-flight 'PROCESSING' events left over from an unexpected
+   * server shutdown or restart, resetting them back to 'PENDING'.
+   */
+  async reconcileInFlightEvents(client?: PoolClient): Promise<number> {
+    const sql = `
+      UPDATE outbox_events
+      SET status = 'PENDING'
+      WHERE status = 'PROCESSING';
+    `;
+    if (client) {
+      const res = await client.query(sql);
+      return res.rowCount || 0;
+    }
+    const res = await query(sql);
+    return res.rowCount || 0;
   }
 
   async markDispatched(id: string, client?: PoolClient): Promise<void> {
@@ -71,14 +108,15 @@ export class OutboxRepository {
   }
 
   /**
-   * Recovers any outbox events that might have been left pending.
+   * Recovers any outbox events that might have been left pending or in-flight.
    */
   async getPendingCount(): Promise<number> {
     const res = await query<{ count: number }>(`
       SELECT COUNT(*)::int AS count
       FROM outbox_events
-      WHERE status = 'PENDING';
+      WHERE status IN ('PENDING', 'PROCESSING');
     `);
     return res.rows[0]?.count || 0;
   }
 }
+
