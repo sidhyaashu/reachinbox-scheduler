@@ -182,10 +182,10 @@ export const apiClient = {
       }
     },
 
-    async loginDemo(email = 'alex.founder@reachinbox.ai', name = 'Oliver Brown'): Promise<void> {
+    async loginDemo(email: string, name?: string): Promise<void> {
       await request('/auth/demo-login', {
         method: 'POST',
-        data: { email, name },
+        data: { email: email.trim(), name: name?.trim() },
       });
     },
 

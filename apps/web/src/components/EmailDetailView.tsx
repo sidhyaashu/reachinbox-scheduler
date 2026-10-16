@@ -21,9 +21,11 @@ import {
   Paperclip,
   FileText,
   Download,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
-import { formatFigmaScheduleTime, formatDateTime, parseRichEmailContent } from '../lib/utils';
+import { formatFigmaScheduleTime, formatDateTime, formatRelativeTime, parseRichEmailContent } from '../lib/utils';
 import {
   Dialog,
   DialogContent,
@@ -56,6 +58,14 @@ export function EmailDetailView() {
   const { success, error, info } = useToast();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [copiedId, setCopiedId] = useState(false);
+
+  const handleCopyId = () => {
+    if (!selectedEmail?.id) return;
+    navigator.clipboard.writeText(selectedEmail.id);
+    setCopiedId(true);
+    setTimeout(() => setCopiedId(false), 2000);
+  };
 
   const handleBack = () => {
     closeDetail();
@@ -103,17 +113,38 @@ export function EmailDetailView() {
     .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
     .join(' ');
 
-  const senderEmail = sender?.email || user?.email || 'outreach@reachinbox.ai';
-  const senderName = sender?.name || user?.name || 'ReachInbox Mailbox';
-  const senderInitial = (senderName[0] || 'R').toUpperCase();
+  const senderEmail = sender?.email || user?.email || '';
+  const senderName = sender?.name || user?.name || (user?.email ? user.email.split('@')[0] : 'Sender');
+  const senderInitial = (senderName[0] || 'S').toUpperCase();
 
   const isScheduled = selectedEmail.status === 'SCHEDULED' || selectedEmail.status === 'QUEUED';
+  const isProcessing = selectedEmail.status === 'PROCESSING';
+  const isDeferred = selectedEmail.status === 'DEFERRED';
   const isSent = selectedEmail.status === 'SENT';
   const isFailed = selectedEmail.status === 'FAILED';
+  const isPending = isScheduled || isProcessing || isDeferred;
 
   const scheduledFormatted = selectedEmail.scheduledAt
     ? formatFigmaScheduleTime(selectedEmail.scheduledAt)
     : 'Not scheduled';
+
+  const deliveryChannel =
+    sender?.authType === 'oauth2_google'
+      ? 'Google Gmail API (OAuth2)'
+      : sender?.hasCustomSmtp
+      ? `Custom SMTP (${sender.smtpHost})`
+      : 'Ethereal Sandbox Relay';
+
+  const interSendDelay = sender?.minDelaySeconds ?? 2;
+  const hourlyQuota = sender?.hourlyLimit ?? 200;
+
+  let turnaroundText: string | null = null;
+  if (selectedEmail.sentAt && selectedEmail.scheduledAt) {
+    const schedMs = new Date(selectedEmail.scheduledAt).getTime();
+    const sentMs = new Date(selectedEmail.sentAt).getTime();
+    const diffSec = ((sentMs - schedMs) / 1000).toFixed(1);
+    turnaroundText = `${diffSec}s dispatch turnaround`;
+  }
 
   return (
     <div className="flex-1 flex flex-col bg-white overflow-y-auto">
@@ -196,25 +227,37 @@ export function EmailDetailView() {
       <div className="max-w-4xl w-full mx-auto px-3 2xs:px-4 xs:px-6 sm:px-8 py-5 sm:py-8 flex flex-col gap-6">
         {/* Status Callout Bar */}
         <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 2xs:p-4 rounded-2xl bg-[#f8fafc] border border-slate-200/70">
-          <div className="flex items-center gap-2 text-xs">
+          <div className="flex flex-wrap items-center gap-2 text-xs">
             {isScheduled && (
-              <>
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-semibold bg-[#ffedd5] text-[#c2410c] border border-[#fed7aa]">
-                  <Clock className="w-3.5 h-3.5" />
-                  <span>Scheduled for: {scheduledFormatted}</span>
-                </span>
-              </>
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-semibold bg-[#ffedd5] text-[#c2410c] border border-[#fed7aa]">
+                <Clock className="w-3.5 h-3.5 shrink-0" />
+                <span>Scheduled: {scheduledFormatted}</span>
+                <span className="font-bold text-[#9a3412]">({formatRelativeTime(selectedEmail.scheduledAt)})</span>
+              </span>
+            )}
+            {isProcessing && (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                <RefreshCw className="w-3.5 h-3.5 animate-spin shrink-0" />
+                <span>Actively Sending • Worker holding inter-send delay slot</span>
+              </span>
+            )}
+            {isDeferred && (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-semibold bg-amber-50 text-amber-800 border border-amber-200">
+                <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-amber-600" />
+                <span>Rate Limited ({hourlyQuota}/hr quota reached) • Rescheduling to next window</span>
+              </span>
             )}
             {isSent && (
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-semibold bg-[#e8f5e9] text-[#00873d] border border-[#c8e6c9]">
-                <CheckCircle className="w-3.5 h-3.5" />
-                <span>Sent successfully</span>
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-semibold bg-[#e8f5e9] text-[#00873d] border border-[#c8e6c9]">
+                <CheckCircle className="w-3.5 h-3.5 shrink-0" />
+                <span>Delivered via {deliveryChannel}</span>
+                {turnaroundText && <span className="text-slate-400 font-normal">({turnaroundText})</span>}
               </span>
             )}
             {isFailed && (
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-semibold bg-red-50 text-red-700 border border-red-200">
-                <AlertCircle className="w-3.5 h-3.5" />
-                <span>Failed</span>
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-semibold bg-red-50 text-red-700 border border-red-200">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                <span>Delivery Failed: {selectedEmail.lastError || 'Permanent delivery failure'}</span>
               </span>
             )}
           </div>
@@ -337,33 +380,177 @@ export function EmailDetailView() {
           </div>
         )}
 
-        {/* Metadata Details */}
-        <div className="mt-4 pt-4 border-t border-slate-100 grid grid-cols-1 2xs:grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
-          <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-            <span className="text-slate-400 block text-[10px] font-semibold uppercase tracking-wider">
-              Email ID
+        {/* Comprehensive Delivery Pipeline & Telemetry Panel */}
+        <div className="mt-4 pt-4 border-t border-slate-100 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+              Delivery Pipeline & Queue Telemetry
             </span>
-            <span className="font-mono text-slate-700 text-[11px] truncate block mt-0.5">
-              {selectedEmail.id}
-            </span>
+            <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500">
+              <span className="w-2 h-2 rounded-full bg-[#00a84e] animate-pulse" />
+              <span>Zero-Cron Outbox Architecture</span>
+            </div>
           </div>
 
-          <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-            <span className="text-slate-400 block text-[10px] font-semibold uppercase tracking-wider">
-              Delivery Attempts
-            </span>
-            <span className="text-slate-700 font-semibold block mt-0.5">
-              {selectedEmail.attempts || 0}
-            </span>
-          </div>
+          <div className="grid grid-cols-1 2xs:grid-cols-2 md:grid-cols-3 gap-3 text-xs">
+            {/* Card 1: Outbox State & Lifecycle */}
+            <div className="p-3.5 rounded-2xl bg-[#f8fafc] border border-slate-200/80 space-y-1">
+              <span className="text-slate-400 block text-[10px] font-bold uppercase tracking-wider">
+                Outbox State
+              </span>
+              <div className="flex items-center gap-1.5 pt-0.5">
+                {isSent ? (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#e8f5e9] text-[#00873d] border border-[#c8e6c9]">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#00a84e]" />
+                    <span>SENT</span>
+                  </span>
+                ) : isProcessing ? (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                    <RefreshCw className="w-3 h-3 animate-spin text-blue-600" />
+                    <span>PROCESSING</span>
+                  </span>
+                ) : isDeferred ? (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                    <AlertTriangle className="w-3 h-3 text-amber-600" />
+                    <span>DEFERRED</span>
+                  </span>
+                ) : isScheduled ? (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#ffedd5] text-[#c2410c] border border-[#fed7aa]">
+                    <Clock className="w-3 h-3 text-[#ea580c]" />
+                    <span>QUEUED</span>
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-50 text-red-700 border border-red-200">
+                    <AlertCircle className="w-3 h-3 text-red-600" />
+                    <span>FAILED</span>
+                  </span>
+                )}
+                <span className="text-[11px] text-slate-500 font-medium truncate">
+                  {selectedEmail.attempts || 0} attempt{(selectedEmail.attempts || 0) === 1 ? '' : 's'}
+                </span>
+              </div>
+              <p className="text-[10px] text-slate-400 pt-1">
+                {isSent
+                  ? 'Delivered to SMTP/API and indexed in Elasticsearch'
+                  : isProcessing
+                  ? 'Job claimed by worker, respecting Redis inter-send delay'
+                  : isDeferred
+                  ? 'Deferred due to rate limiting. Rescheduled for next hour window'
+                  : isScheduled
+                  ? 'Persistent in PostgreSQL outbox & delayed in BullMQ Redis'
+                  : 'Delivery encountered a permanent failure'}
+              </p>
+            </div>
 
-          <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 2xs:col-span-2 sm:col-span-1">
-            <span className="text-slate-400 block text-[10px] font-semibold uppercase tracking-wider">
-              Outbox State
-            </span>
-            <span className="text-[#00873d] font-semibold block mt-0.5">
-              {selectedEmail.status}
-            </span>
+            {/* Card 2: Active Rate Limit Policy */}
+            <div className="p-3.5 rounded-2xl bg-[#f8fafc] border border-slate-200/80 space-y-1">
+              <span className="text-slate-400 block text-[10px] font-bold uppercase tracking-wider">
+                Active Rate Limiter
+              </span>
+              <div className="space-y-0.5 pt-0.5">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-slate-500 font-medium">Inter-Send Delay:</span>
+                  <span className="font-bold text-slate-900 bg-white px-2 py-0.5 rounded-md border border-slate-200/60 shadow-2xs">
+                    {interSendDelay} sec
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-xs pt-1">
+                  <span className="text-slate-500 font-medium">Hourly Quota:</span>
+                  <span className="font-bold text-slate-900 bg-white px-2 py-0.5 rounded-md border border-slate-200/60 shadow-2xs">
+                    {hourlyQuota} / hr
+                  </span>
+                </div>
+              </div>
+              <p className="text-[10px] text-slate-400 pt-0.5">
+                Atomic sliding-window enforced via Redis slot scheduling
+              </p>
+            </div>
+
+            {/* Card 3: Dispatch Channel & Mailbox */}
+            <div className="p-3.5 rounded-2xl bg-[#f8fafc] border border-slate-200/80 space-y-1">
+              <span className="text-slate-400 block text-[10px] font-bold uppercase tracking-wider">
+                Delivery Provider
+              </span>
+              <p className="font-semibold text-slate-800 text-xs truncate pt-0.5" title={deliveryChannel}>
+                {deliveryChannel}
+              </p>
+              <p className="text-[11px] text-slate-500 truncate" title={senderEmail}>
+                From: {senderEmail || 'Default Relay'}
+              </p>
+              {selectedEmail.etherealMessageUrl && (
+                <a
+                  href={selectedEmail.etherealMessageUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 text-[11px] font-bold text-[#00873d] hover:underline pt-0.5"
+                >
+                  <ExternalLink className="w-3 h-3" />
+                  <span>View Ethereal Preview</span>
+                </a>
+              )}
+            </div>
+
+            {/* Card 4: Execution Timing & Latency */}
+            <div className="p-3.5 rounded-2xl bg-[#f8fafc] border border-slate-200/80 space-y-1 md:col-span-2">
+              <span className="text-slate-400 block text-[10px] font-bold uppercase tracking-wider">
+                Execution Timeline
+              </span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-0.5">
+                <div>
+                  <span className="text-slate-400 block text-[10px]">Target Scheduled Time:</span>
+                  <span className="text-slate-800 font-semibold block">{formatDateTime(selectedEmail.scheduledAt)}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-[10px]">Actual Delivered Time:</span>
+                  <span className="text-slate-800 font-semibold block">
+                    {selectedEmail.sentAt ? (
+                      formatDateTime(selectedEmail.sentAt)
+                    ) : isPending ? (
+                      <span className="text-[#c2410c] font-bold">Pending ({formatRelativeTime(selectedEmail.scheduledAt)})</span>
+                    ) : (
+                      '—'
+                    )}
+                  </span>
+                </div>
+              </div>
+              {turnaroundText && (
+                <p className="text-[10px] font-semibold text-[#00873d] pt-1">
+                  ✓ Dispatch precision: {turnaroundText}
+                </p>
+              )}
+            </div>
+
+            {/* Card 5: Email UUID */}
+            <div className="p-3.5 rounded-2xl bg-[#f8fafc] border border-slate-200/80 space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400 block text-[10px] font-bold uppercase tracking-wider">
+                  Email ID (UUID)
+                </span>
+                <button
+                  type="button"
+                  onClick={handleCopyId}
+                  className="inline-flex items-center gap-1 text-[10px] font-semibold text-[#00873d] hover:text-[#005f2b] cursor-pointer"
+                >
+                  {copiedId ? (
+                    <>
+                      <Check className="w-3 h-3" />
+                      <span>Copied</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3 h-3" />
+                      <span>Copy</span>
+                    </>
+                  )}
+                </button>
+              </div>
+              <p className="font-mono text-slate-700 text-[11px] truncate pt-1 select-all" title={selectedEmail.id}>
+                {selectedEmail.id}
+              </p>
+              <p className="text-[10px] text-slate-400 pt-0.5">
+                Persisted in PostgreSQL `emails` table
+              </p>
+            </div>
           </div>
         </div>
       </div>

@@ -175,13 +175,18 @@ export class MailerService {
   async getTransporter(sender?: Sender | null): Promise<Transporter> {
     // 1. Check if sender has linked Google OAuth2 credentials for passwordless Gmail sending
     if (sender && (sender.authType === 'oauth2_google' || sender.googleRefreshToken) && sender.googleRefreshToken) {
+      const clientId = process.env.GOOGLE_CLIENT_ID;
+      const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+      if (!clientId || !clientSecret) {
+        throw new Error('[MailerService] Missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET in environment for Gmail OAuth transport');
+      }
       return nodemailer.createTransport({
         service: 'gmail',
         auth: {
           type: 'OAuth2',
           user: sender.email,
-          clientId: process.env.GOOGLE_CLIENT_ID || 'mock-client-id',
-          clientSecret: process.env.GOOGLE_CLIENT_SECRET || 'mock-client-secret',
+          clientId,
+          clientSecret,
           refreshToken: sender.googleRefreshToken,
           accessToken: sender.googleAccessToken || undefined,
         },

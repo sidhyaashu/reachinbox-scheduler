@@ -76,6 +76,35 @@ describe('Auth & Slack Integration Endpoints', () => {
       expect(res.body.success).toBe(true);
       expect(res.body.data.message).toBe('Logged out successfully');
     });
+
+    it('POST /auth/login rejects empty email with 400 Bad Request', async () => {
+      const res = await request(app).post('/auth/login').send({ email: '' });
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
+      expect(res.body.error.code).toBe('BAD_REQUEST');
+    });
+
+    it('POST /auth/login creates session for provided email without dummy defaults', async () => {
+      vi.spyOn(AuthService.prototype, 'createDemoSession').mockResolvedValueOnce({
+        token: 'session-token-xyz',
+        user: {
+          id: 'user-actual-123',
+          email: 'founder@mycompany.com',
+          name: 'Founder',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      });
+
+      const res = await request(app).post('/auth/login').send({
+        email: 'founder@mycompany.com',
+        name: 'Founder',
+      });
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.user.email).toBe('founder@mycompany.com');
+    });
   });
 
   describe('Slack OAuth Integration Endpoints', () => {

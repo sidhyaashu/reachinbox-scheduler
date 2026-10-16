@@ -154,8 +154,8 @@ export function Header({
             {dropdownOpen && (
               <div className="absolute right-0 mt-2 w-64 glass-dropdown rounded-xl shadow-2xl p-2 border border-border z-50 animate-in fade-in zoom-in-95">
                 <div className="px-3 py-2 border-b border-border/50">
-                  <p className="text-sm font-semibold text-slate-100 truncate">{user?.name || 'User'}</p>
-                  <p className="text-xs text-slate-400 truncate">{user?.email || 'user@reachinbox.ai'}</p>
+                  <p className="text-sm font-semibold text-slate-100 truncate">{user?.name || (user?.email ? user.email.split('@')[0] : 'User')}</p>
+                  <p className="text-xs text-slate-400 truncate">{user?.email || ''}</p>
                 </div>
 
                 <div className="py-1">

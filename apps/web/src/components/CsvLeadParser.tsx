@@ -52,8 +52,8 @@ export function CsvLeadParser({ onLeadsChange }: CsvLeadParserProps) {
     reader.readAsText(file);
   };
 
-  const loadDemoLeads = () => {
-    const demoLeads = [
+  const loadSampleLeads = () => {
+    const sampleLeads = [
       'alex.hunter@stripe.com',
       'sarah.connor@openai.com',
       'david.kim@notion.so',
@@ -61,7 +61,7 @@ export function CsvLeadParser({ onLeadsChange }: CsvLeadParserProps) {
       'marcus.vance@linear.app',
     ].join('\n');
 
-    processContent(demoLeads, 'demo_sample_leads.csv');
+    processContent(sampleLeads, 'sample_leads.csv');
   };
 
   const clearAll = () => {
@@ -144,12 +144,12 @@ export function CsvLeadParser({ onLeadsChange }: CsvLeadParserProps) {
 
             <button
               type="button"
-              onClick={loadDemoLeads}
+              onClick={loadSampleLeads}
               className="flex items-center gap-1.5 py-3 px-3.5 rounded-xl border border-brand-500/30 bg-brand-500/10 hover:bg-brand-500/20 text-brand-300 text-xs font-medium transition-all"
-              title="Fill with 5 verified leads"
+              title="Fill with 5 verified sample leads"
             >
               <Sparkles className="w-3.5 h-3.5" />
-              <span>Load Demo Leads</span>
+              <span>Load Sample Leads</span>
             </button>
 
             {stats.validCount > 0 && (

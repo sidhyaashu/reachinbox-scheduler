@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useSchedulerStore, hasDraftContent } from '../lib/store';
 import { EmailRecord } from '../lib/api-client';
 import { Skeleton } from './ui/skeleton';
-import { formatFigmaScheduleTime } from '../lib/utils';
+import { formatFigmaScheduleTime, formatRelativeTime } from '../lib/utils';
 import {
   Clock,
   Star,
@@ -344,10 +344,19 @@ export function EmailList() {
             );
           }
           if (isScheduled || activeTab === 'scheduled') {
+            const relTime = formatRelativeTime(email.scheduledAt);
             return (
-              <span className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-[#ffedd5] text-[#c2410c] border border-[#fed7aa]">
+              <span
+                className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-[#ffedd5] text-[#c2410c] border border-[#fed7aa]"
+                title={`Scheduled at ${formatFigmaScheduleTime(email.scheduledAt)}`}
+              >
                 <Clock className="w-3.5 h-3.5 shrink-0" />
                 <span>{formatFigmaScheduleTime(email.scheduledAt)}</span>
+                {relTime && relTime !== '—' && (
+                  <span className="font-bold text-[#9a3412] bg-[#fed7aa]/60 px-1.5 py-0.5 rounded-full text-[10px]">
+                    {relTime}
+                  </span>
+                )}
               </span>
             );
           }

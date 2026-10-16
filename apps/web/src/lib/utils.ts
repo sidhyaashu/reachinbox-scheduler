@@ -81,7 +81,10 @@ export function formatRelativeTime(dateInput: string | Date | null | undefined):
   const absDiffSec = Math.floor(Math.abs(diffMs) / 1000);
 
   if (absDiffSec < 60) {
-    return diffMs > 0 ? 'in < 1 min' : 'just now';
+    if (diffMs > 0) {
+      return absDiffSec <= 1 ? 'in 1s' : `in ${absDiffSec}s`;
+    }
+    return absDiffSec <= 5 ? 'just now' : `${absDiffSec}s ago`;
   }
 
   const mins = Math.floor(absDiffSec / 60);

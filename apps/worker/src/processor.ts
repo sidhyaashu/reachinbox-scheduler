@@ -40,7 +40,7 @@ export class EmailProcessor {
     const sender = await this.senderRepo.findById(data.senderId);
     const hourlyLimit = sender?.hourlyLimit || 200;
     const minDelaySeconds = sender?.minDelaySeconds || 2;
-    const senderEmail = sender?.email || 'default@reachinbox.ai';
+    const senderEmail = sender?.email || data.senderId;
 
     // 3. Evaluate atomic hourly rate limit
     const rateCheck = await this.rateLimiter.checkHourlyLimit(data.senderId, hourlyLimit);

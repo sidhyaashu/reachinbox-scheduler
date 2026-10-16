@@ -2,6 +2,7 @@ import axios from 'axios';
 import {
   EmailRepository,
   SenderRepository,
+  UserRepository,
   CreateEmailParams,
 } from '@reachinbox/database';
 import {
@@ -17,7 +18,8 @@ import { removeEmailJob } from '@reachinbox/queue';
 export class EmailService {
   constructor(
     private readonly emailRepo: EmailRepository = new EmailRepository(),
-    private readonly senderRepo: SenderRepository = new SenderRepository()
+    private readonly senderRepo: SenderRepository = new SenderRepository(),
+    private readonly userRepo: UserRepository = new UserRepository()
   ) {}
 
   /**
@@ -46,7 +48,7 @@ export class EmailService {
       }
     }
 
-    // 2. Validate sender exists or assign/create default
+    // 2. Validate sender exists or assign/create default from user profile
     let senderId = input.senderId;
     const sender = await this.senderRepo.findById(senderId);
     if (!sender) {
@@ -54,10 +56,13 @@ export class EmailService {
       if (defaultSender) {
         senderId = defaultSender.id;
       } else {
+        const user = await this.userRepo.findById(userId);
+        const userEmail = user?.email || `${userId}@reachinbox.com`;
+        const userName = user?.name || 'Verified Sender';
         const created = await this.senderRepo.upsertDefaultSender(
           userId,
-          'outreach@reachinbox.ai',
-          { name: 'ReachInbox Sender' }
+          userEmail,
+          { name: userName }
         );
         senderId = created.id;
       }
@@ -92,15 +97,31 @@ export class EmailService {
     const sender = input.senderId ? await this.senderRepo.findById(input.senderId) : null;
     if (sender) {
       resolvedSenderId = sender.id;
+      if (input.delayBetweenEmailsSeconds !== undefined || input.hourlyLimit !== undefined) {
+        await this.senderRepo.updateLimits(resolvedSenderId, {
+          minDelaySeconds: input.delayBetweenEmailsSeconds,
+          hourlyLimit: input.hourlyLimit,
+        });
+      }
     } else {
       const defaultSender = await this.senderRepo.findDefaultOrFirstByUserId(userId);
       if (defaultSender) {
         resolvedSenderId = defaultSender.id;
+        if (input.delayBetweenEmailsSeconds !== undefined || input.hourlyLimit !== undefined) {
+          await this.senderRepo.updateLimits(resolvedSenderId, {
+            minDelaySeconds: input.delayBetweenEmailsSeconds,
+            hourlyLimit: input.hourlyLimit,
+          });
+        }
       } else {
+        const user = await this.userRepo.findById(userId);
+        const userEmail = user?.email || `${userId}@reachinbox.com`;
+        const userName = user?.name || 'Verified Sender';
         const created = await this.senderRepo.upsertDefaultSender(
           userId,
-          'outreach@reachinbox.ai',
+          userEmail,
           {
+            name: userName,
             hourlyLimit: input.hourlyLimit,
             minDelaySeconds: input.delayBetweenEmailsSeconds,
           }

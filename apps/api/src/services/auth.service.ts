@@ -96,13 +96,18 @@ export class AuthService {
     return { token: rawToken, user };
   }
 
-  async createDemoSession(email = 'alex.founder@reachinbox.ai', name = 'Alex Founder'): Promise<{ token: string; user: User }> {
-    const demoGoogleId = `demo_${email}`;
+  async createDemoSession(email: string, name?: string): Promise<{ token: string; user: User }> {
+    if (!email || !email.trim()) {
+      throw new Error('Email address is required to create session.');
+    }
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanName = name?.trim() || cleanEmail.split('@')[0] || 'User';
+    const demoGoogleId = `email_auth_${cleanEmail}`;
     const user = await this.userRepo.upsertGoogleUser(
       demoGoogleId,
-      email,
-      name,
-      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'
+      cleanEmail,
+      cleanName,
+      null
     );
 
     const rawToken = crypto.randomBytes(32).toString('hex');

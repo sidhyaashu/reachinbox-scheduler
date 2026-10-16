@@ -18,12 +18,6 @@ declare global {
 const sessionRepo = new SessionRepository();
 const userRepo = new UserRepository();
 
-export const DEFAULT_DEV_USER = {
-  id: '00000000-0000-0000-0000-000000000001',
-  email: 'demo@reachinbox.ai',
-  name: 'ReachInbox Demo User',
-};
-
 export async function authMiddleware(req: Request, _res: Response, next: NextFunction): Promise<void> {
   try {
     // 1. Check session cookie

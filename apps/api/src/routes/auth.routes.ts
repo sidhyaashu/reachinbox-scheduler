@@ -9,7 +9,8 @@ export function createAuthRouter(controller: AuthController = new AuthController
   router.get('/google', controller.googleRedirect);
   router.get('/google/callback', controller.googleCallback);
 
-  // Demo / local evaluation login without Google credentials
+  // Email authentication login
+  router.post('/login', controller.demoLogin);
   router.post('/demo-login', controller.demoLogin);
   router.get('/demo-login', controller.demoLoginRedirect);
 

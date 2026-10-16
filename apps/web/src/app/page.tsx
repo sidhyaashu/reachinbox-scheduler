@@ -151,7 +151,7 @@ function LoginContent() {
             <div>
               <Input
                 type="email"
-                placeholder="Email ID (e.g. alex@reachinbox.ai)"
+                placeholder="Email ID (e.g. you@company.com)"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="h-10 2xs:h-11 bg-[#f4f6f8] border-none text-xs 2xs:text-sm text-slate-800 placeholder:text-slate-400 rounded-xl cursor-text"

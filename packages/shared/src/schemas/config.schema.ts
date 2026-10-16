@@ -27,14 +27,14 @@ export const BaseConfigSchema = z.object({
   ELASTICSEARCH_PASSWORD: z.string().optional(),
 
   // Google OAuth
-  GOOGLE_CLIENT_ID: z.string().default('mock-client-id'),
-  GOOGLE_CLIENT_SECRET: z.string().default('mock-client-secret'),
+  GOOGLE_CLIENT_ID: z.string().default(''),
+  GOOGLE_CLIENT_SECRET: z.string().default(''),
   GOOGLE_CALLBACK_URL: z.string().default('http://localhost:4000/auth/google/callback'),
   SESSION_SECRET: z.string().min(16).default('development-session-secret-must-be-long-enough'),
 
   // Slack OAuth
-  SLACK_CLIENT_ID: z.string().default('mock-slack-client-id'),
-  SLACK_CLIENT_SECRET: z.string().default('mock-slack-secret'),
+  SLACK_CLIENT_ID: z.string().default(''),
+  SLACK_CLIENT_SECRET: z.string().default(''),
   SLACK_REDIRECT_URI: z.string().default('http://localhost:4000/integrations/slack/callback'),
 
   // Service Ports

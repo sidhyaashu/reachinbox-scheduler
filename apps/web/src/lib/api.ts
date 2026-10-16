@@ -124,10 +124,10 @@ export const api = {
     }
   },
 
-  async loginWithDemo(email = 'alex.founder@reachinbox.ai', name = 'Alex Founder'): Promise<{ user: UserProfile }> {
+  async loginWithDemo(email: string, name?: string): Promise<{ user: UserProfile }> {
     return request<{ user: UserProfile }>('/auth/demo-login', {
       method: 'POST',
-      body: JSON.stringify({ email, name }),
+      body: JSON.stringify({ email: email.trim(), name: name?.trim() }),
     });
   },
 

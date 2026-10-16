@@ -302,31 +302,55 @@ export function ComposeView() {
     setScheduledAt(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`);
   };
 
-  const handleAddRecipient = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' || e.key === ',') {
+  const commitRawInput = (raw: string): string[] => {
+    if (!raw || !raw.trim()) return recipients;
+    const { validEmails } = parseLeadsFromTextOrCsv(raw);
+    if (validEmails.length > 0) {
+      const merged = Array.from(new Set([...recipients, ...validEmails]));
+      setRecipients(merged);
+      setToInput('');
+      return merged;
+    }
+    return recipients;
+  };
+
+  const handleAddRecipient = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' || e.key === ',' || e.key === ';' || e.key === 'Tab') {
       e.preventDefault();
-      const trimmed = toInput.trim().replace(',', '');
-      if (trimmed && trimmed.includes('@')) {
-        if (!recipients.includes(trimmed)) {
-          setRecipients((prev) => [...prev, trimmed]);
-        }
-        setToInput('');
-      }
+      commitRawInput(toInput);
     }
   };
 
   const handleBlurRecipient = () => {
-    const trimmed = toInput.trim().replace(',', '');
-    if (trimmed && trimmed.includes('@')) {
-      if (!recipients.includes(trimmed)) {
-        setRecipients((prev) => [...prev, trimmed]);
-      }
+    commitRawInput(toInput);
+  };
+
+  const handlePasteRecipient = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    const text = e.clipboardData.getData('text');
+    if (!text) return;
+    const { validEmails } = parseLeadsFromTextOrCsv(text);
+    if (validEmails.length > 0) {
+      e.preventDefault();
+      const merged = Array.from(new Set([...recipients, ...validEmails]));
+      setRecipients(merged);
       setToInput('');
+      success('Recipients Added', `Loaded ${validEmails.length} recipient${validEmails.length > 1 ? 's' : ''}`);
     }
   };
 
   const handleSend = async () => {
-    if (recipients.length === 0) {
+    // 1. Commit any remaining uncommitted text currently in toInput
+    let activeRecipients = [...recipients];
+    if (toInput.trim()) {
+      const { validEmails } = parseLeadsFromTextOrCsv(toInput.trim());
+      if (validEmails.length > 0) {
+        activeRecipients = Array.from(new Set([...activeRecipients, ...validEmails]));
+        setRecipients(activeRecipients);
+        setToInput('');
+      }
+    }
+
+    if (activeRecipients.length === 0) {
       error('Missing Recipient', 'Please add at least one recipient email or upload a CSV lead list');
       return;
     }
@@ -349,7 +373,7 @@ export function ComposeView() {
       }] : undefined;
 
       const res = await scheduleCampaign({
-        recipients,
+        recipients: activeRecipients,
         subject,
         body,
         scheduledAt: new Date(scheduledAt).toISOString(),
@@ -359,7 +383,7 @@ export function ComposeView() {
         attachments,
       });
 
-      success('Outreach Scheduled', `Successfully queued ${res.scheduledCount} emails into BullMQ!`);
+      success('Outreach Scheduled', `Successfully queued ${res.scheduledCount} email${res.scheduledCount > 1 ? 's' : ''} into BullMQ!`);
       clearComposeDraft();
       closeCompose();
       router.replace('/dashboard?tab=scheduled', { scroll: false });
@@ -383,7 +407,6 @@ export function ComposeView() {
       selectedSenderEmail,
       sender?.email,
       user?.email,
-      !sender?.email && !user?.email ? 'outreach@reachinbox.ai' : null,
     ].filter(Boolean) as string[])
   );
 
@@ -732,8 +755,13 @@ export function ComposeView() {
         {/* TO Field + Upload List */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 py-1 border-t border-slate-100 pt-3">
           <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6 flex-1 min-w-0">
-            <span className="text-xs font-semibold text-slate-400 w-12 shrink-0 select-none">
-              To
+            <span className="text-xs font-semibold text-slate-400 w-16 shrink-0 select-none flex items-center gap-1">
+              <span>To</span>
+              {recipients.length > 0 && (
+                <span className="text-[11px] font-bold text-[#00873d] bg-[#e8f5e9] px-1.5 py-0.2 rounded-full">
+                  {recipients.length}
+                </span>
+              )}
             </span>
 
             {/* Recipient Pills */}
@@ -845,14 +873,15 @@ export function ComposeView() {
                 onChange={(e) => setToInput(e.target.value)}
                 onKeyDown={handleAddRecipient}
                 onBlur={handleBlurRecipient}
-                placeholder={recipients.length === 0 ? 'Enter email (e.g. lead@example.com)' : 'Add more...'}
+                onPaste={handlePasteRecipient}
+                placeholder={recipients.length === 0 ? 'Enter email(s) or paste list (e.g. user@domain.com, lead@corp.com)' : 'Add more...'}
                 autoComplete="off"
                 autoCorrect="off"
                 autoCapitalize="off"
                 spellCheck={false}
                 data-lpignore="true"
                 data-form-type="other"
-                className="text-xs bg-transparent border-none text-slate-800 placeholder:text-slate-400 outline-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 shadow-none flex-1 min-w-[160px] py-1 cursor-text selection:bg-[#00a84e] selection:text-white"
+                className="text-xs bg-transparent border-none text-slate-800 placeholder:text-slate-400 outline-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 shadow-none flex-1 min-w-[200px] py-1 cursor-text selection:bg-[#00a84e] selection:text-white"
               />
             </div>
           </div>
@@ -914,8 +943,9 @@ export function ComposeView() {
         </div>
 
         {/* INLINE SETTINGS: Delay between 2 emails & Hourly Limit */}
-        <div className="flex flex-wrap items-center gap-4 sm:gap-6 py-2 border-t border-slate-100 pt-3">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-4 py-2 border-t border-slate-100 pt-3">
+          <div className="flex flex-wrap items-center gap-4 sm:gap-6">
+            <div className="flex items-center gap-2">
             <span className="text-xs text-slate-500 font-medium">
               Delay between 2 emails
             </span>
@@ -970,6 +1000,30 @@ export function ComposeView() {
             />
           </div>
         </div>
+
+        {/* Dynamic Campaign Projection Pill */}
+        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#f4f6f8] border border-slate-200/70 text-xs">
+          <Clock className="w-3.5 h-3.5 text-[#00a84e] shrink-0" />
+          <span className="text-slate-600">
+            {recipients.length === 0 ? (
+              'Add recipients to preview scheduled dispatch spacing'
+            ) : recipients.length === 1 ? (
+              <>
+                <strong className="text-slate-800 font-semibold">1 recipient</strong> scheduled for dispatch.
+                {delaySeconds > 0 && (
+                  <span className="text-slate-400 ml-1">(Add 2+ recipients to apply {delaySeconds}s delay spacing)</span>
+                )}
+              </>
+            ) : (
+              <>
+                <strong className="text-slate-900 font-bold">{recipients.length} recipients</strong> spaced by{' '}
+                <strong className="text-[#00873d] font-bold">{delaySeconds}s</strong> • Duration:{' '}
+                <strong className="text-slate-900 font-semibold">~{(recipients.length - 1) * delaySeconds}s</strong>
+              </>
+            )}
+          </span>
+        </div>
+      </div>
 
         {/* RICH TEXT EDITOR BOX */}
         <div className="rounded-2xl bg-[#f8fafc] border border-slate-200/80 p-3 2xs:p-4 space-y-3 mt-1 focus-within:border-[#00a84e] focus-within:ring-2 focus-within:ring-[#00a84e]/15 transition-all">

@@ -106,8 +106,15 @@ export class AuthController {
 
   demoLogin = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const email = (req.body?.email as string) || 'alex.founder@reachinbox.ai';
-      const name = (req.body?.name as string) || 'Alex Founder';
+      const email = (req.body?.email as string)?.trim();
+      if (!email) {
+        res.status(400).json({
+          success: false,
+          error: { code: 'BAD_REQUEST', message: 'Valid email address is required.' },
+        });
+        return;
+      }
+      const name = (req.body?.name as string)?.trim() || email.split('@')[0] || 'User';
       const { token, user } = await this.authService.createDemoSession(email, name);
 
       res.cookie('reachinbox_session', token, {
@@ -120,7 +127,7 @@ export class AuthController {
 
       res.status(200).json({
         success: true,
-        data: { user, message: 'Demo session created successfully' },
+        data: { user, message: 'Session created successfully' },
       });
     } catch (err) {
       next(err);
@@ -129,8 +136,17 @@ export class AuthController {
 
   demoLoginRedirect = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const email = (req.query?.email as string) || 'alex.founder@reachinbox.ai';
-      const name = (req.query?.name as string) || 'Alex Founder';
+      const email = (req.query?.email as string)?.trim();
+      const frontendUrl = process.env.WEB_URL || '';
+      if (!email) {
+        res.redirect(
+          frontendUrl
+            ? `${frontendUrl}/?error=invalid_request&error_description=${encodeURIComponent('Valid email address is required.')}`
+            : '/?error=invalid_request'
+        );
+        return;
+      }
+      const name = (req.query?.name as string)?.trim() || email.split('@')[0] || 'User';
       const { token } = await this.authService.createDemoSession(email, name);
 
       res.cookie('reachinbox_session', token, {
@@ -141,7 +157,6 @@ export class AuthController {
         maxAge: 7 * 24 * 60 * 60 * 1000,
       });
 
-      const frontendUrl = process.env.WEB_URL;
       res.redirect(frontendUrl ? `${frontendUrl}/dashboard` : '/dashboard');
     } catch (err) {
       next(err);

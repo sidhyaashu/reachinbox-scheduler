@@ -379,7 +379,7 @@ export class SenderRepository {
     `;
     const res = await query<Sender>(insertSql, [
       userId,
-      config.email || 'outreach@reachinbox.ai',
+      config.email || '',
       config.name || 'Custom Mailbox',
       config.smtpHost || 'smtp.ethereal.email',
       config.smtpPort || 587,
@@ -392,6 +392,21 @@ export class SenderRepository {
     const sender = res.rows[0];
     if (!sender) throw new Error('[SenderRepository] Failed to create SMTP sender.');
     return sender;
+  }
+
+  async updateLimits(
+    senderId: string,
+    limits: { hourlyLimit?: number; minDelaySeconds?: number }
+  ): Promise<void> {
+    const sql = `
+      UPDATE senders
+      SET
+        hourly_limit = COALESCE($2, hourly_limit),
+        min_delay_seconds = COALESCE($3, min_delay_seconds),
+        updated_at = NOW()
+      WHERE id = $1;
+    `;
+    await query(sql, [senderId, limits.hourlyLimit ?? null, limits.minDelaySeconds ?? null]);
   }
 
   async disconnectCustomSmtp(userId: string): Promise<Sender | null> {
@@ -430,3 +445,4 @@ export class SenderRepository {
     return res.rows[0] || null;
   }
 }
+
