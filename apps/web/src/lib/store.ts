@@ -673,16 +673,65 @@ export const useSchedulerStore = create<SchedulerState>((set, get) => ({
   },
 
   logout: async () => {
-    await apiClient.auth.logout();
-    set({ user: null, sender: null });
+    try {
+      await apiClient.auth.logout();
+    } catch (e) {
+      console.warn('[Store] Logout API call failed:', e);
+    }
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('reachinbox_starred_emails');
+      localStorage.removeItem('reachinbox_archived_emails');
+      localStorage.removeItem('reachinbox_trashed_records');
+      localStorage.removeItem('reachinbox_trashed_emails');
+      localStorage.removeItem('reachinbox_compose_draft');
+    }
+    set({
+      user: null,
+      sender: null,
+      slackIntegration: null,
+      scheduledEmails: [],
+      sentEmails: [],
+      archivedEmailIds: [],
+      trashedEmailIds: [],
+      trashedEmailsMap: {},
+      starredEmailIds: [],
+      counts: { scheduled: 0, sent: 0, archive: 0, drafts: 0, trash: 0 },
+      selectedEmail: null,
+      composeDraft: null,
+      searchResults: null,
+      isSearching: false,
+      composeOpen: false,
+      detailOpen: false,
+      isLoading: false,
+      errorMessage: null,
+    });
   },
 }));
 
 // Global listener for 401 Unauthorized to invalidate session state immediately
 apiClient.auth.onUnauthorized(() => {
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem('reachinbox_starred_emails');
+    localStorage.removeItem('reachinbox_archived_emails');
+    localStorage.removeItem('reachinbox_trashed_records');
+    localStorage.removeItem('reachinbox_trashed_emails');
+    localStorage.removeItem('reachinbox_compose_draft');
+  }
   useSchedulerStore.setState({
     user: null,
     sender: null,
+    slackIntegration: null,
+    scheduledEmails: [],
+    sentEmails: [],
+    archivedEmailIds: [],
+    trashedEmailIds: [],
+    trashedEmailsMap: {},
+    starredEmailIds: [],
+    counts: { scheduled: 0, sent: 0, archive: 0, drafts: 0, trash: 0 },
+    selectedEmail: null,
+    composeDraft: null,
+    searchResults: null,
+    isSearching: false,
     isLoading: false,
   });
 });

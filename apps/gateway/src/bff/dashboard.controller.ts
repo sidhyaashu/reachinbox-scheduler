@@ -27,17 +27,14 @@ export class DashboardController {
       }
 
       if (!userId) {
-        if (process.env.NODE_ENV === 'production') {
-          res.status(401).json({
-            success: false,
-            error: {
-              code: 'UNAUTHORIZED',
-              message: 'Authentication required. Please sign in.',
-            },
-          });
-          return;
-        }
-        userId = '00000000-0000-0000-0000-000000000001';
+        res.status(401).json({
+          success: false,
+          error: {
+            code: 'UNAUTHORIZED',
+            message: 'Authentication required. Please sign in.',
+          },
+        });
+        return;
       }
 
       const summary = await this.bffService.getDashboardSummary(userId);

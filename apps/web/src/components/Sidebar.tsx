@@ -58,11 +58,11 @@ export function Sidebar() {
 
   const handleLogout = async () => {
     await logout();
-    router.replace('/');
+    window.location.href = '/';
   };
 
-  const displayName = user?.name || (user?.email ? user.email.split('@')[0] : 'Oliver Brown');
-  const displayEmail = user?.email || 'oliver@reachinbox.ai';
+  const displayName = user?.name || (user?.email ? user.email.split('@')[0] : 'User');
+  const displayEmail = user?.email || '';
   const initials = getFallbackInitials(user?.name, user?.email);
 
   const sidebarContent = (

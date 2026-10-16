@@ -6,7 +6,14 @@ export class SearchController {
 
   search = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const userId = (req.headers['x-user-id'] as string) || req.query.userId as string || '00000000-0000-0000-0000-000000000001';
+      const userId = (req.headers['x-user-id'] as string) || (req.query.userId as string);
+      if (!userId) {
+        res.status(401).json({
+          success: false,
+          error: { code: 'UNAUTHORIZED', message: 'Authentication required. Missing user identity.' },
+        });
+        return;
+      }
       const q = req.query.q as string | undefined;
       const status = req.query.status as string | undefined;
       const page = req.query.page ? parseInt(req.query.page as string, 10) : 1;

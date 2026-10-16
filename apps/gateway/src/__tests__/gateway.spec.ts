@@ -58,7 +58,9 @@ describe('API Gateway & BFF Service', () => {
         },
       });
 
-      const res = await request(app).get('/api/v1/dashboard/summary');
+      const res = await request(app)
+        .get('/api/v1/dashboard/summary')
+        .set('x-user-id', 'user-1');
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
 
@@ -70,17 +72,11 @@ describe('API Gateway & BFF Service', () => {
       expect(data.queueMetrics.delayed).toBe(3);
     });
 
-    it('GET /api/v1/dashboard/summary returns 401 in production when unauthenticated', async () => {
-      const origEnv = process.env.NODE_ENV;
-      try {
-        process.env.NODE_ENV = 'production';
-        const res = await request(app).get('/api/v1/dashboard/summary');
-        expect(res.status).toBe(401);
-        expect(res.body.success).toBe(false);
-        expect(res.body.error.code).toBe('UNAUTHORIZED');
-      } finally {
-        process.env.NODE_ENV = origEnv;
-      }
+    it('GET /api/v1/dashboard/summary returns 401 when unauthenticated', async () => {
+      const res = await request(app).get('/api/v1/dashboard/summary');
+      expect(res.status).toBe(401);
+      expect(res.body.success).toBe(false);
+      expect(res.body.error.code).toBe('UNAUTHORIZED');
     });
   });
 });

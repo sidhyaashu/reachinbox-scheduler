@@ -3,6 +3,7 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import { createProxyMiddleware, fixRequestBody } from 'http-proxy-middleware';
 import crypto from 'crypto';
+import { SessionRepository } from '@reachinbox/database';
 import { config } from './config.js';
 import { setupBullBoard } from './bull-board.js';
 import { createDashboardRouter } from './bff/dashboard.routes.js';
@@ -22,6 +23,27 @@ export function createApp(): Express {
     next();
   });
 
+  const sessionRepo = new SessionRepository();
+
+  // Resolve session cookie to X-User-Id header for downstream microservices
+  app.use(async (req: Request, _res: Response, next: NextFunction) => {
+    try {
+      if (!req.headers['x-user-id'] && req.cookies?.reachinbox_session) {
+        const rawToken = req.cookies.reachinbox_session;
+        const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+        const session =
+          (await sessionRepo.findByTokenHash(tokenHash)) ||
+          (await sessionRepo.findByTokenHash(rawToken));
+        if (session) {
+          req.headers['x-user-id'] = session.userId;
+        }
+      }
+    } catch {
+      // Non-blocking
+    }
+    next();
+  });
+
   // Health checks
   app.get('/health/live', (_req, res) => {
     res.status(200).json({ status: 'UP', service: 'gateway', uptime: process.uptime() });
@@ -30,6 +52,14 @@ export function createApp(): Express {
   app.get('/health/ready', (_req, res) => {
     res.status(200).json({ status: 'READY', service: 'gateway' });
   });
+
+  // Helper to ensure x-user-id header and request body are forwarded to downstream microservices
+  const attachHeadersAndFixBody = (proxyReq: any, req: any) => {
+    if (req.headers['x-user-id']) {
+      proxyReq.setHeader('x-user-id', req.headers['x-user-id']);
+    }
+    fixRequestBody(proxyReq, req);
+  };
 
   // 1. Live BullMQ Dashboard (/admin/queues)
   const bullBoardRouter = setupBullBoard();
@@ -46,7 +76,7 @@ export function createApp(): Express {
       target: config.EMAIL_API_URL,
       changeOrigin: true,
       pathRewrite: (path) => (path.startsWith('/api/v1/emails') ? path : `/api/v1/emails${path}`),
-      on: { proxyReq: fixRequestBody },
+      on: { proxyReq: attachHeadersAndFixBody },
     })
   );
 
@@ -57,7 +87,7 @@ export function createApp(): Express {
       target: config.EMAIL_API_URL,
       changeOrigin: true,
       pathRewrite: (path) => (path.startsWith('/auth') ? path : `/auth${path}`),
-      on: { proxyReq: fixRequestBody },
+      on: { proxyReq: attachHeadersAndFixBody },
     })
   );
 
@@ -68,7 +98,7 @@ export function createApp(): Express {
       target: config.EMAIL_API_URL,
       changeOrigin: true,
       pathRewrite: (path) => (path.startsWith('/integrations') ? path : `/integrations${path}`),
-      on: { proxyReq: fixRequestBody },
+      on: { proxyReq: attachHeadersAndFixBody },
     })
   );
 
@@ -79,7 +109,7 @@ export function createApp(): Express {
       target: config.SEARCH_SERVICE_URL,
       changeOrigin: true,
       pathRewrite: (path) => (path.startsWith('/api/v1/search') ? path : `/api/v1/search${path}`),
-      on: { proxyReq: fixRequestBody },
+      on: { proxyReq: attachHeadersAndFixBody },
     })
   );
 

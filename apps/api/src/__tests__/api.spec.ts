@@ -29,9 +29,25 @@ describe('Email API Endpoints', () => {
   });
 
   describe('POST /api/v1/emails/schedule', () => {
+    it('returns 401 UNAUTHORIZED when no auth header or session is present', async () => {
+      const res = await request(app)
+        .post('/api/v1/emails/schedule')
+        .send({
+          recipient: 'lead@reachinbox.ai',
+          subject: 'Cold outreach test',
+          body: 'Hello lead',
+          scheduledAt: new Date(Date.now() + 60000).toISOString(),
+        });
+
+      expect(res.status).toBe(401);
+      expect(res.body.success).toBe(false);
+      expect(res.body.error.code).toBe('UNAUTHORIZED');
+    });
+
     it('rejects invalid recipient with 400 VALIDATION_ERROR', async () => {
       const res = await request(app)
         .post('/api/v1/emails/schedule')
+        .set('x-user-id', 'test-user-1')
         .send({
           senderId: '123e4567-e89b-12d3-a456-426614174000',
           recipient: 'not-valid-email',
@@ -49,6 +65,7 @@ describe('Email API Endpoints', () => {
     it('rejects missing subject or body with 400', async () => {
       const res = await request(app)
         .post('/api/v1/emails/schedule')
+        .set('x-user-id', 'test-user-1')
         .send({
           senderId: '123e4567-e89b-12d3-a456-426614174000',
           recipient: 'lead@reachinbox.ai',

@@ -10,31 +10,48 @@ export class AuthController {
     res.redirect(authUrl);
   };
 
-  googleCallback = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  googleCallback = async (req: Request, res: Response): Promise<void> => {
+    const frontendUrl = process.env.WEB_URL || '';
     try {
+      // 1. Detect if Google redirected with an error (e.g. user denied or closed consent)
+      const errorParam = req.query.error as string | undefined;
+      const errorDesc = req.query.error_description as string | undefined;
+      if (errorParam) {
+        const redirectUrl = `${frontendUrl}/?error=${encodeURIComponent(errorParam)}&error_description=${encodeURIComponent(
+          errorDesc || 'Google sign-in was cancelled or denied.'
+        )}`;
+        res.redirect(redirectUrl);
+        return;
+      }
+
       const code = req.query.code as string;
       if (!code) {
-        res.status(400).json({ success: false, error: { code: 'MISSING_CODE', message: 'OAuth code missing' } });
+        const redirectUrl = `${frontendUrl}/?error=missing_code&error_description=${encodeURIComponent(
+          'No authorization code received from Google.'
+        )}`;
+        res.redirect(redirectUrl);
         return;
       }
 
       const { token } = await this.authService.handleGoogleCallback(code);
 
-      // Set secure HTTP-only session cookie
+      // Set secure HTTP-only session cookie with root path
       res.cookie('reachinbox_session', token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
+        path: '/',
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       });
 
       // Redirect to frontend dashboard (web app)
       const state = req.query.state as string | undefined;
       const targetPath = state && state.startsWith('/') ? state : '/dashboard';
-      const frontendUrl = process.env.WEB_URL;
       res.redirect(frontendUrl ? `${frontendUrl}${targetPath}` : targetPath);
-    } catch (err) {
-      next(err);
+    } catch (err: any) {
+      console.error('[AuthController] Google OAuth callback failed:', err.message);
+      const errMsg = err.message || 'Google authentication could not be completed.';
+      res.redirect(`${frontendUrl}/?error=oauth_failed&error_description=${encodeURIComponent(errMsg)}`);
     }
   };
 
@@ -73,7 +90,9 @@ export class AuthController {
 
       res.clearCookie('reachinbox_session', {
         httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
+        path: '/',
       });
 
       res.status(200).json({
@@ -95,6 +114,7 @@ export class AuthController {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
+        path: '/',
         maxAge: 7 * 24 * 60 * 60 * 1000,
       });
 
@@ -117,6 +137,7 @@ export class AuthController {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
+        path: '/',
         maxAge: 7 * 24 * 60 * 60 * 1000,
       });
 

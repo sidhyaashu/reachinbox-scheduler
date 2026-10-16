@@ -26,19 +26,43 @@ describe('Auth & Slack Integration Endpoints', () => {
       vi.spyOn(AuthService.prototype, 'getCurrentUser').mockResolvedValueOnce({
         user: {
           id: '00000000-0000-0000-0000-000000000001',
-          email: 'demo@reachinbox.ai',
-          name: 'ReachInbox Demo User',
+          email: 'user@reachinbox.ai',
+          name: 'ReachInbox User',
           createdAt: new Date(),
           updatedAt: new Date(),
         },
         defaultSenderId: 'sender-123',
       });
 
-      const res = await request(app).get('/auth/me');
+      const res = await request(app)
+        .get('/auth/me')
+        .set('x-user-id', '00000000-0000-0000-0000-000000000001');
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
       expect(res.body.data.user).toBeDefined();
-      expect(res.body.data.user.email).toBe('demo@reachinbox.ai');
+      expect(res.body.data.user.email).toBe('user@reachinbox.ai');
+    });
+
+    it('GET /auth/me returns 401 when unauthenticated without cookie or header', async () => {
+      const res = await request(app).get('/auth/me');
+      expect(res.status).toBe(401);
+      expect(res.body.success).toBe(false);
+      expect(res.body.error.code).toBe('UNAUTHORIZED');
+    });
+
+    it('GET /auth/google/callback redirects to login page when error parameter received', async () => {
+      const res = await request(app)
+        .get('/auth/google/callback')
+        .query({ error: 'access_denied', error_description: 'User denied consent' });
+      expect(res.status).toBe(302);
+      expect(res.headers.location).toContain('error=access_denied');
+      expect(res.headers.location).toContain('error_description=');
+    });
+
+    it('GET /auth/google/callback redirects to login page when code is missing', async () => {
+      const res = await request(app).get('/auth/google/callback');
+      expect(res.status).toBe(302);
+      expect(res.headers.location).toContain('error=missing_code');
     });
 
     it('POST /auth/logout clears cookie and returns success', async () => {
@@ -55,8 +79,17 @@ describe('Auth & Slack Integration Endpoints', () => {
   });
 
   describe('Slack OAuth Integration Endpoints', () => {
+    it('returns 401 when accessing Slack integration unauthenticated', async () => {
+      const res = await request(app).get('/integrations/slack/status');
+      expect(res.status).toBe(401);
+      expect(res.body.success).toBe(false);
+      expect(res.body.error.code).toBe('UNAUTHORIZED');
+    });
+
     it('GET /integrations/slack/authorize redirects to Slack OAuth authorize URL', async () => {
-      const res = await request(app).get('/integrations/slack/authorize');
+      const res = await request(app)
+        .get('/integrations/slack/authorize')
+        .set('x-user-id', 'test-user-id');
       expect(res.status).toBe(302);
       expect(res.headers.location).toContain('https://slack.com/oauth/v2/authorize');
       expect(res.headers.location).toContain('client_id=');
@@ -68,7 +101,9 @@ describe('Auth & Slack Integration Endpoints', () => {
         connected: false,
       });
 
-      const res = await request(app).get('/integrations/slack/status');
+      const res = await request(app)
+        .get('/integrations/slack/status')
+        .set('x-user-id', 'test-user-id');
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
       expect(res.body.data.connected).toBe(false);

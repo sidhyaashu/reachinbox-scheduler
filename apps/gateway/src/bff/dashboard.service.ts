@@ -49,12 +49,7 @@ export class DashboardBffService {
             name: user.name,
             avatarUrl: user.avatarUrl,
           }
-        : {
-            id: userId,
-            email: 'demo@reachinbox.ai',
-            name: 'Demo User',
-            avatarUrl: null,
-          },
+        : null,
       sender: sender
         ? {
             id: sender.id,

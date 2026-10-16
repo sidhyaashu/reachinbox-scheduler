@@ -45,28 +45,22 @@ export async function authMiddleware(req: Request, _res: Response, next: NextFun
     // 2. Check X-User-Id header (for internal service / gateway / testing forwarding)
     const forwardedUserId = req.headers['x-user-id'];
     if (typeof forwardedUserId === 'string' && forwardedUserId.length > 0) {
+      if (process.env.NODE_ENV === 'test') {
+        req.user = {
+          id: forwardedUserId,
+          email: (req.headers['x-user-email'] as string) || 'test@reachinbox.ai',
+          name: (req.headers['x-user-name'] as string) || 'Test User',
+        };
+        return next();
+      }
       const user = await userRepo.findById(forwardedUserId);
       if (user) {
         req.user = { id: user.id, email: user.email, name: user.name };
         return next();
       }
-      // If header given but user doesn't exist yet, attach minimum context in dev
-      if (process.env.NODE_ENV !== 'production') {
-        req.user = {
-          id: forwardedUserId,
-          email: (req.headers['x-user-email'] as string) || 'developer@reachinbox.ai',
-          name: (req.headers['x-user-name'] as string) || 'Developer',
-        };
-        return next();
-      }
     }
 
-    // 3. In non-production, fall back to default demo user for seamless local development
-    if (process.env.NODE_ENV !== 'production') {
-      req.user = DEFAULT_DEV_USER;
-      return next();
-    }
-
+    // 3. Strict authentication required - no silent demo fallback
     throw new UnauthorizedError('Authentication required. Please sign in with Google.');
   } catch (err) {
     next(err);

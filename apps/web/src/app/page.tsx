@@ -15,6 +15,8 @@ function LoginContent() {
   const searchParams = useSearchParams();
   const returnTo = searchParams.get('returnTo') || '/dashboard';
   const sessionExpired = searchParams.get('sessionExpired') === 'true';
+  const oauthError = searchParams.get('error');
+  const oauthErrorDesc = searchParams.get('error_description');
 
   const { success, error } = useToast();
   const [email, setEmail] = useState('');
@@ -52,9 +54,13 @@ function LoginContent() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    const loginEmail = email.trim();
+    if (!loginEmail) {
+      error('Email required', 'Please enter your email address to sign in.');
+      return;
+    }
     setLoading(true);
     try {
-      const loginEmail = email.trim() || 'demo@reachinbox.ai';
       const dynamicName = deriveDisplayName(loginEmail);
       await apiClient.auth.loginDemo(loginEmail, dynamicName);
       success('Welcome back', `Signed in as ${dynamicName}`);
@@ -82,7 +88,14 @@ function LoginContent() {
     <div className="min-h-screen w-full bg-[#fcfcfc] flex items-center justify-center p-3 2xs:p-4 xs:p-6 sm:p-8">
       <Card className="w-full max-w-[380px] p-6 2xs:p-8 sm:p-10 rounded-2xl border border-slate-100/80 bg-white shadow-[0_4px_24px_rgba(0,0,0,0.03)]">
         <CardContent className="p-0 flex flex-col items-center">
-          {sessionExpired && (
+          {oauthError && (
+            <div className="w-full mb-5 p-3 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
+              <span>{oauthErrorDesc || 'Google sign-in could not be completed. Please try again.'}</span>
+            </div>
+          )}
+
+          {sessionExpired && !oauthError && (
             <div className="w-full mb-5 p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-center gap-2">
               <AlertCircle className="w-4 h-4 shrink-0 text-amber-600" />
               <span>Your session expired. Please sign in again.</span>
