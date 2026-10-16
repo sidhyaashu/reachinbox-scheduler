@@ -57,8 +57,11 @@ export class EmailService {
         senderId = defaultSender.id;
       } else {
         const user = await this.userRepo.findById(userId);
-        const userEmail = user?.email || `${userId}@reachinbox.com`;
-        const userName = user?.name || 'Verified Sender';
+        if (!user?.email) {
+          throw new BadRequestError('Active account does not have a verified email address. Please connect a mailbox or sign in again.');
+        }
+        const userEmail = user.email;
+        const userName = user.name || 'Verified Sender';
         const created = await this.senderRepo.upsertDefaultSender(
           userId,
           userEmail,
@@ -115,8 +118,11 @@ export class EmailService {
         }
       } else {
         const user = await this.userRepo.findById(userId);
-        const userEmail = user?.email || `${userId}@reachinbox.com`;
-        const userName = user?.name || 'Verified Sender';
+        if (!user?.email) {
+          throw new BadRequestError('Active account does not have a verified email address. Please connect a mailbox or sign in again.');
+        }
+        const userEmail = user.email;
+        const userName = user.name || 'Verified Sender';
         const created = await this.senderRepo.upsertDefaultSender(
           userId,
           userEmail,

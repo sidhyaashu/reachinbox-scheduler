@@ -377,9 +377,12 @@ export class SenderRepository {
         created_at AS "createdAt",
         updated_at AS "updatedAt";
     `;
+    const senderEmail = config.email || config.smtpUser;
+    if (!senderEmail) throw new Error('[SenderRepository] Valid sender email address is required.');
+
     const res = await query<Sender>(insertSql, [
       userId,
-      config.email || '',
+      senderEmail,
       config.name || 'Custom Mailbox',
       config.smtpHost || 'smtp.ethereal.email',
       config.smtpPort || 587,
