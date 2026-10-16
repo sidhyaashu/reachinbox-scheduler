@@ -428,12 +428,16 @@ export function EmailDetailView() {
                   </span>
                 )}
                 <span className="text-[11px] text-slate-500 font-medium truncate">
-                  {selectedEmail.attempts || 0} attempt{(selectedEmail.attempts || 0) === 1 ? '' : 's'}
+                  {isSent && (selectedEmail.attempts || 0) === 1
+                    ? 'Delivered on 1st attempt'
+                    : isSent
+                    ? `Delivered on attempt ${selectedEmail.attempts}`
+                    : `${selectedEmail.attempts || 0} attempt${(selectedEmail.attempts || 0) === 1 ? '' : 's'}`}
                 </span>
               </div>
               <p className="text-[10px] text-slate-400 pt-1">
                 {isSent
-                  ? 'Delivered to SMTP/API and indexed in Elasticsearch'
+                  ? 'Delivered to SMTP/API on 1st try and indexed in Elasticsearch'
                   : isProcessing
                   ? 'Job claimed by worker, respecting Redis inter-send delay'
                   : isDeferred
@@ -453,18 +457,20 @@ export function EmailDetailView() {
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-slate-500 font-medium">Inter-Send Delay:</span>
                   <span className="font-bold text-slate-900 bg-white px-2 py-0.5 rounded-md border border-slate-200/60 shadow-2xs">
-                    {interSendDelay} sec
+                    {interSendDelay}s between emails
                   </span>
                 </div>
                 <div className="flex items-center justify-between text-xs pt-1">
                   <span className="text-slate-500 font-medium">Hourly Quota:</span>
                   <span className="font-bold text-slate-900 bg-white px-2 py-0.5 rounded-md border border-slate-200/60 shadow-2xs">
-                    {hourlyQuota} / hr
+                    Max {hourlyQuota} / hr
                   </span>
                 </div>
               </div>
               <p className="text-[10px] text-slate-400 pt-0.5">
-                Atomic sliding-window enforced via Redis slot scheduling
+                {isSent
+                  ? 'Spacing applies between successive recipients; quota respected.'
+                  : 'Atomic sliding-window enforced via Redis slot scheduling'}
               </p>
             </div>
 
