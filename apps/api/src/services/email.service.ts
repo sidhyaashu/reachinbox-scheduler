@@ -163,12 +163,29 @@ export class EmailService {
       throw new NotFoundError('Email', emailId);
     }
 
+    // Try to update to CANCELLED for active queue jobs
     const cancelled = await this.emailRepo.cancelEmail(emailId, userId);
     if (!cancelled) {
-      throw new ConflictError(`Email '${emailId}' cannot be cancelled as it is already being processed or sent.`);
+      // If it was already completed (SENT, FAILED, or already CANCELLED), permanently delete it per user request
+      await this.emailRepo.deleteEmail(emailId, userId);
     }
 
-    // Proactively remove delayed job from BullMQ so it does not linger or execute as SKIPPED_CANCELLED
+    // Proactively remove delayed job from BullMQ so it does not linger or execute
+    try {
+      await removeEmailJob(emailId);
+    } catch (err) {
+      console.warn(`[EmailService] Non-critical: Could not remove BullMQ job ${emailId}:`, err);
+    }
+  }
+
+  async deleteEmail(userId: string, emailId: string): Promise<void> {
+    const email = await this.emailRepo.findById(emailId);
+    if (!email || email.userId !== userId) {
+      throw new NotFoundError('Email', emailId);
+    }
+
+    await this.emailRepo.deleteEmail(emailId, userId);
+
     try {
       await removeEmailJob(emailId);
     } catch (err) {

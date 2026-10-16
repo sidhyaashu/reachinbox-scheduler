@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useSchedulerStore } from '../lib/store';
+import { useSchedulerStore, hasDraftContent } from '../lib/store';
 import { EmailRecord } from '../lib/api-client';
 import { Skeleton } from './ui/skeleton';
 import { formatFigmaScheduleTime } from '../lib/utils';
@@ -17,6 +17,7 @@ import {
   Trash2,
   AlertTriangle,
   FileText,
+  Archive,
 } from 'lucide-react';
 import {
   Dialog,
@@ -49,8 +50,13 @@ export function EmailList() {
     starredEmailIds,
     toggleStar,
     archivedEmailIds,
+    trashedEmailIds,
+    archiveEmail,
     unarchiveEmail,
-    cancelEmail,
+    moveToTrash,
+    restoreFromTrash,
+    permanentDeleteEmail,
+    emptyTrash,
     composeDraft,
     clearComposeDraft,
   } = useSchedulerStore();
@@ -62,26 +68,33 @@ export function EmailList() {
 
   const handleDeleteClick = (e: React.MouseEvent, email: EmailRecord) => {
     e.stopPropagation();
+    if (email.id === 'draft-current' || email.status === 'DRAFT') {
+      clearComposeDraft();
+      success('Draft Discarded', 'Your saved draft has been removed');
+      return;
+    }
     setEmailToDelete(email);
   };
 
   const handleConfirmDelete = async () => {
     if (!emailToDelete) return;
-    setIsDeleting(true);
+    const target = emailToDelete;
+    setEmailToDelete(null);
+    setIsDeleting(false);
+
     try {
-      if (emailToDelete.id === 'draft-current') {
+      if (target.id === 'draft-current') {
         clearComposeDraft();
         success('Draft Discarded', 'Your saved draft has been removed');
-        setEmailToDelete(null);
+      } else if (activeTab === 'trash') {
+        await permanentDeleteEmail(target.id);
+        success('Email Permanently Deleted', `Email to ${target.recipient} was removed permanently`);
       } else {
-        await cancelEmail(emailToDelete.id);
-        success('Email Deleted', `Email to ${emailToDelete.recipient} was cancelled and removed`);
-        setEmailToDelete(null);
+        await moveToTrash(target.id);
+        success('Email Moved to Trash', `Email to ${target.recipient} was moved to Trash`);
       }
     } catch (err: any) {
-      error('Deletion Failed', err.message || 'Could not delete email');
-    } finally {
-      setIsDeleting(false);
+      error('Action Failed', err.message || 'Could not complete action');
     }
   };
 
@@ -100,21 +113,27 @@ export function EmailList() {
   // Determine current list and apply filter if active
   let rawList: EmailRecord[] = [];
   if (activeTab === 'archive') {
-    rawList = [...scheduledEmails, ...sentEmails].filter((e) => archivedEmailIds.includes(e.id));
+    rawList = [...scheduledEmails, ...sentEmails].filter(
+      (e) => archivedEmailIds.includes(e.id) && !trashedEmailIds.includes(e.id)
+    );
+  } else if (activeTab === 'trash') {
+    rawList = [...scheduledEmails, ...sentEmails].filter((e) => trashedEmailIds.includes(e.id));
   } else if (activeTab === 'scheduled') {
-    rawList = scheduledEmails.filter((e) => !archivedEmailIds.includes(e.id));
+    rawList = scheduledEmails.filter(
+      (e) => !archivedEmailIds.includes(e.id) && !trashedEmailIds.includes(e.id)
+    );
   } else if (activeTab === 'drafts') {
-    if (composeDraft && (composeDraft.recipients?.length > 0 || composeDraft.subject || composeDraft.body)) {
+    if (hasDraftContent(composeDraft)) {
       rawList = [
         {
           id: 'draft-current',
           userId: user?.id || 'current-user',
           senderId: sender?.id || 'sender-1',
-          recipient: composeDraft.recipients?.join(', ') || 'Draft (No recipient)',
-          subject: composeDraft.subject || 'Untitled Draft',
-          body: composeDraft.body || 'No message content',
+          recipient: composeDraft?.recipients?.join(', ') || 'Draft (No recipient)',
+          subject: composeDraft?.subject || 'Untitled Draft',
+          body: composeDraft?.body || 'No message content',
           status: 'DRAFT',
-          scheduledAt: composeDraft.scheduledAt || new Date().toISOString(),
+          scheduledAt: composeDraft?.scheduledAt || new Date().toISOString(),
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
           attempts: 0,
@@ -124,16 +143,24 @@ export function EmailList() {
       rawList = [];
     }
   } else {
-    rawList = sentEmails.filter((e) => !archivedEmailIds.includes(e.id));
+    rawList = sentEmails.filter(
+      (e) => !archivedEmailIds.includes(e.id) && !trashedEmailIds.includes(e.id)
+    );
   }
 
-  if (activeTab !== 'drafts') {
+  if (activeTab !== 'drafts' && activeTab !== 'trash') {
     if (filterStatus === 'SENT') {
-      rawList = sentEmails.filter((e) => !archivedEmailIds.includes(e.id));
+      rawList = sentEmails.filter(
+        (e) => !archivedEmailIds.includes(e.id) && !trashedEmailIds.includes(e.id)
+      );
     } else if (filterStatus === 'SCHEDULED' || filterStatus === 'PROCESSING') {
-      rawList = scheduledEmails.filter((e) => !archivedEmailIds.includes(e.id));
+      rawList = scheduledEmails.filter(
+        (e) => !archivedEmailIds.includes(e.id) && !trashedEmailIds.includes(e.id)
+      );
     } else if (filterStatus === 'FAILED') {
-      rawList = [...scheduledEmails, ...sentEmails].filter((e) => !archivedEmailIds.includes(e.id));
+      rawList = [...scheduledEmails, ...sentEmails].filter(
+        (e) => !archivedEmailIds.includes(e.id) && !trashedEmailIds.includes(e.id)
+      );
     }
   }
 
@@ -178,7 +205,15 @@ export function EmailList() {
     return (
       <div className="w-full flex flex-col items-center justify-center py-16 sm:py-24 text-center px-4">
         <div className="w-12 h-12 rounded-2xl bg-[#e8f5e9] flex items-center justify-center text-[#00a84e] mb-3">
-          <Mail className="w-6 h-6" />
+          {activeTab === 'trash' ? (
+            <Trash2 className="w-6 h-6 text-slate-400" />
+          ) : activeTab === 'archive' ? (
+            <Archive className="w-6 h-6" />
+          ) : activeTab === 'drafts' ? (
+            <FileText className="w-6 h-6" />
+          ) : (
+            <Mail className="w-6 h-6" />
+          )}
         </div>
         <h3 className="text-sm font-semibold text-slate-800">
           {isSearchActive
@@ -187,6 +222,10 @@ export function EmailList() {
             ? `No emails found with status "${filterStatus.charAt(0) + filterStatus.slice(1).toLowerCase()}"`
             : activeTab === 'drafts'
             ? 'No drafts found'
+            : activeTab === 'trash'
+            ? 'Trash is empty'
+            : activeTab === 'archive'
+            ? 'No archived emails'
             : `No ${activeTab === 'scheduled' ? 'scheduled' : 'sent'} emails found`}
         </h3>
         <p className="text-xs text-slate-400 max-w-sm mt-1 mb-5">
@@ -196,6 +235,10 @@ export function EmailList() {
             ? 'Try selecting "All Statuses" or clear the filter to see all emails.'
             : activeTab === 'drafts'
             ? 'Saved outreach campaign drafts will appear here. Click Compose to start and auto-save.'
+            : activeTab === 'trash'
+            ? 'Messages you delete will appear here. You can restore them or delete them permanently.'
+            : activeTab === 'archive'
+            ? 'Emails you archive will appear here for easy reference.'
             : activeTab === 'scheduled'
             ? 'Compose a new outreach email or upload leads to populate the queue.'
             : 'Sent campaign deliveries and live Ethereal preview links will appear here.'}
@@ -215,16 +258,18 @@ export function EmailList() {
             </button>
           )}
 
-          <button
-            type="button"
-            onClick={() => {
-              openCompose();
-              window.history.pushState(null, '', `/dashboard?tab=${activeTab}&compose=true`);
-            }}
-            className="text-xs font-semibold text-[#00a84e] bg-[#e8f5e9] hover:bg-[#d4edda] px-4 py-2 rounded-full transition-colors cursor-pointer"
-          >
-            + Compose New Email
-          </button>
+          {activeTab !== 'trash' && (
+            <button
+              type="button"
+              onClick={() => {
+                openCompose();
+                window.history.pushState(null, '', `/dashboard?tab=${activeTab}&compose=true`);
+              }}
+              className="text-xs font-semibold text-[#00a84e] bg-[#e8f5e9] hover:bg-[#d4edda] px-4 py-2 rounded-full transition-colors cursor-pointer"
+            >
+              + Compose New Email
+            </button>
+          )}
         </div>
       </div>
     );
@@ -232,6 +277,26 @@ export function EmailList() {
 
   return (
     <div className="w-full divide-y divide-slate-100">
+      {/* Informative Trash Banner with Quick Empty Action */}
+      {activeTab === 'trash' && emails.length > 0 && (
+        <div className="flex items-center justify-between px-3 2xs:px-4 py-2.5 bg-amber-50/70 border-b border-amber-200/60 text-xs text-amber-900">
+          <div className="flex items-center gap-2">
+            <Trash2 className="w-4 h-4 text-amber-600 shrink-0" />
+            <span>Messages in Trash are kept here. You can restore them or delete them permanently.</span>
+          </div>
+          <button
+            type="button"
+            onClick={async () => {
+              await emptyTrash();
+              success('Trash Emptied', 'All items in trash permanently deleted');
+            }}
+            className="font-bold text-red-600 hover:text-red-700 hover:underline px-2 py-0.5 cursor-pointer shrink-0"
+          >
+            Empty Trash now
+          </button>
+        </div>
+      )}
+
       {emails.map((email) => {
         const isStarred = starredEmailIds.includes(email.id);
         const recipientName = getRecipientDisplayName(email);
@@ -239,9 +304,18 @@ export function EmailList() {
         const isScheduled = email.status === 'SCHEDULED' || email.status === 'QUEUED';
         const isFailed = email.status === 'FAILED';
         const isProcessing = email.status === 'PROCESSING';
+        const isTrashed = activeTab === 'trash' || trashedEmailIds.includes(email.id);
 
         // Render status badge based on exact state
         const renderBadge = () => {
+          if (isTrashed) {
+            return (
+              <span className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+                <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                <span>Trash</span>
+              </span>
+            );
+          }
           if (isFailed) {
             return (
               <span className="shrink-0 inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-red-50 text-red-700 border border-red-200">
@@ -311,17 +385,37 @@ export function EmailList() {
               </span>
               <div className="flex items-center gap-2">
                 {renderBadge()}
-                {activeTab === 'archive' && (
+                {(activeTab === 'archive' || activeTab === 'trash') && (
                   <button
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      unarchiveEmail(email.id);
+                      if (activeTab === 'trash') {
+                        restoreFromTrash(email.id);
+                        success('Email Restored', `Email to ${email.recipient} restored`);
+                      } else {
+                        unarchiveEmail(email.id);
+                        success('Email Restored', `Email to ${email.recipient} restored`);
+                      }
                     }}
                     className="p-1 text-slate-400 hover:text-[#00a84e] transition-colors cursor-pointer shrink-0"
                     title="Restore to inbox"
                   >
                     <ArchiveRestore className="w-3.5 h-3.5" />
+                  </button>
+                )}
+                {(activeTab === 'scheduled' || activeTab === 'sent') && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      archiveEmail(email.id);
+                      success('Email Archived', `Email to ${email.recipient} moved to archive`);
+                    }}
+                    className="p-1 text-slate-300 hover:text-slate-600 transition-colors cursor-pointer shrink-0"
+                    title="Archive email"
+                  >
+                    <Archive className="w-3.5 h-3.5" />
                   </button>
                 )}
                 <button
@@ -340,7 +434,7 @@ export function EmailList() {
                   type="button"
                   onClick={(e) => handleDeleteClick(e, email)}
                   className="p-1 text-slate-300 hover:text-red-500 transition-colors cursor-pointer shrink-0"
-                  title="Delete email"
+                  title={activeTab === 'trash' ? 'Delete permanently' : activeTab === 'drafts' ? 'Discard draft' : 'Move to trash'}
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
@@ -379,17 +473,37 @@ export function EmailList() {
 
             {/* Desktop Actions */}
             <div className="hidden sm:flex items-center gap-1 shrink-0">
-              {activeTab === 'archive' && (
+              {(activeTab === 'archive' || activeTab === 'trash') && (
                 <button
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
-                    unarchiveEmail(email.id);
+                    if (activeTab === 'trash') {
+                      restoreFromTrash(email.id);
+                      success('Email Restored', `Email to ${email.recipient} restored`);
+                    } else {
+                      unarchiveEmail(email.id);
+                      success('Email Restored', `Email to ${email.recipient} restored`);
+                    }
                   }}
                   className="p-1 text-slate-400 hover:text-[#00a84e] transition-colors cursor-pointer"
                   title="Restore to inbox"
                 >
                   <ArchiveRestore className="w-4 h-4" />
+                </button>
+              )}
+              {(activeTab === 'scheduled' || activeTab === 'sent') && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    archiveEmail(email.id);
+                    success('Email Archived', `Email to ${email.recipient} moved to archive`);
+                  }}
+                  className="p-1 text-slate-300 hover:text-slate-600 transition-colors cursor-pointer"
+                  title="Archive email"
+                >
+                  <Archive className="w-4 h-4" />
                 </button>
               )}
               <button
@@ -408,7 +522,7 @@ export function EmailList() {
                 type="button"
                 onClick={(e) => handleDeleteClick(e, email)}
                 className="p-1 text-slate-300 hover:text-red-500 transition-colors cursor-pointer"
-                title="Delete email"
+                title={activeTab === 'trash' ? 'Delete permanently' : activeTab === 'drafts' ? 'Discard draft' : 'Move to trash'}
               >
                 <Trash2 className="w-4 h-4" />
               </button>
@@ -433,14 +547,30 @@ export function EmailList() {
                 <AlertTriangle className="w-5 h-5" />
               </div>
               <div>
-                <DialogTitle>Cancel & Delete Email</DialogTitle>
-                <p className="text-xs text-slate-400 mt-0.5">This action cannot be undone</p>
+                <DialogTitle>
+                  {activeTab === 'trash' ? 'Permanently Delete Email' : 'Move Email to Trash'}
+                </DialogTitle>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  {activeTab === 'trash'
+                    ? 'This action cannot be undone'
+                    : 'You can restore this email anytime from Trash'}
+                </p>
               </div>
             </div>
             <DialogDescription className="text-slate-600 pt-2 text-xs sm:text-sm">
-              Are you sure you want to cancel and delete this email to{' '}
-              <strong className="text-slate-900 font-semibold">{emailToDelete?.recipient}</strong>?
-              It will be permanently removed from the scheduling queue and database.
+              {activeTab === 'trash' ? (
+                <>
+                  Are you sure you want to permanently delete the email to{' '}
+                  <strong className="text-slate-900 font-semibold">{emailToDelete?.recipient}</strong>?
+                  It will be completely removed from the database.
+                </>
+              ) : (
+                <>
+                  Move outreach email to{' '}
+                  <strong className="text-slate-900 font-semibold">{emailToDelete?.recipient}</strong> to Trash?
+                  Any pending scheduled dispatch will be paused.
+                </>
+              )}
             </DialogDescription>
           </DialogHeader>
 
@@ -484,17 +614,8 @@ export function EmailList() {
               onClick={handleConfirmDelete}
               className="w-full sm:w-auto px-4 py-2 text-xs sm:text-sm font-semibold text-white bg-red-600 hover:bg-red-700 border border-red-600 rounded-xl transition-colors cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 shadow-sm"
             >
-              {isDeleting ? (
-                <>
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                  <span>Deleting...</span>
-                </>
-              ) : (
-                <>
-                  <Trash2 className="w-4 h-4" />
-                  <span>Delete Email</span>
-                </>
-              )}
+              <Trash2 className="w-4 h-4" />
+              <span>{activeTab === 'trash' ? 'Delete Permanently' : 'Move to Trash'}</span>
             </button>
           </DialogFooter>
         </DialogContent>

@@ -222,16 +222,16 @@ export const apiClient = {
       });
     },
 
+    async delete(emailId: string): Promise<void> {
+      await request(`/api/v1/emails/${emailId}`, {
+        method: 'DELETE',
+      });
+    },
+
     async cancel(emailId: string): Promise<void> {
-      try {
-        await request(`/api/v1/emails/${emailId}`, {
-          method: 'DELETE',
-        });
-      } catch {
-        await request(`/api/v1/emails/${emailId}/cancel`, {
-          method: 'POST',
-        });
-      }
+      await request(`/api/v1/emails/${emailId}`, {
+        method: 'DELETE',
+      });
     },
   },
 

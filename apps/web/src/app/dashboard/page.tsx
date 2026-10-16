@@ -108,6 +108,8 @@ function DashboardContent() {
       setActiveTab('archive');
     } else if (urlTab === 'drafts' && activeTab !== 'drafts') {
       setActiveTab('drafts');
+    } else if (urlTab === 'trash' && activeTab !== 'trash') {
+      setActiveTab('trash');
     } else if (urlTab === 'integrations' && activeTab !== 'integrations') {
       setActiveTab('integrations');
     }

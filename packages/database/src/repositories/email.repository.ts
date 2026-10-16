@@ -241,8 +241,15 @@ export class EmailRepository {
     const sql = `
       UPDATE emails
       SET status = 'CANCELLED', updated_at = NOW()
-      WHERE id = $1 AND user_id = $2 AND status IN ('SCHEDULED', 'QUEUED');
+      WHERE id = $1 AND user_id = $2 AND status IN ('SCHEDULED', 'QUEUED', 'DEFERRED', 'PROCESSING');
     `;
+    const res = await query(sql, [id, userId]);
+    return (res.rowCount ?? 0) > 0;
+  }
+
+  async deleteEmail(id: string, userId: string): Promise<boolean> {
+    await query(`DELETE FROM outbox_events WHERE aggregate_id = $1`, [id]).catch(() => null);
+    const sql = `DELETE FROM emails WHERE id = $1 AND user_id = $2;`;
     const res = await query(sql, [id, userId]);
     return (res.rowCount ?? 0) > 0;
   }

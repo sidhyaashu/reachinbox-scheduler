@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useSchedulerStore } from '../lib/store';
-import { Clock, Send, ChevronDown, ExternalLink, LogOut, X, Archive, FileText, CheckCircle2, Layers } from 'lucide-react';
+import { Clock, Send, ChevronDown, ExternalLink, LogOut, X, Archive, FileText, CheckCircle2, Layers, Trash2 } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from './ui/avatar';
 import { Button } from './ui/button';
 import {
@@ -227,6 +227,37 @@ export function Sidebar() {
                 }`}
               >
                 {counts.archive}
+              </span>
+            )}
+          </button>
+
+          {/* Trash Nav Pill */}
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('trash');
+              closeCompose();
+              closeDetail();
+              setMobileSidebarOpen(false);
+              window.history.pushState(null, '', '/dashboard?tab=trash');
+            }}
+            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm transition-all cursor-pointer ${
+              activeTab === 'trash'
+                ? 'bg-[#e8f5e9] text-[#00873d] font-semibold'
+                : 'text-slate-600 hover:bg-slate-50 font-normal'
+            }`}
+          >
+            <div className="flex items-center gap-2.5">
+              <Trash2 className={`w-4 h-4 ${activeTab === 'trash' ? 'text-[#00873d]' : 'text-slate-500'}`} />
+              <span>Trash</span>
+            </div>
+            {counts.trash > 0 && (
+              <span
+                className={`text-xs ${
+                  activeTab === 'trash' ? 'text-[#00873d] font-bold' : 'text-slate-400'
+                }`}
+              >
+                {counts.trash}
               </span>
             )}
           </button>

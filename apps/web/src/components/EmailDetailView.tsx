@@ -43,8 +43,12 @@ export function EmailDetailView() {
     starredEmailIds,
     toggleStar,
     archivedEmailIds,
+    trashedEmailIds,
     archiveEmail,
     unarchiveEmail,
+    moveToTrash,
+    restoreFromTrash,
+    permanentDeleteEmail,
   } = useSchedulerStore();
   const { success, error, info } = useToast();
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -73,16 +77,19 @@ export function EmailDetailView() {
   };
 
   const handleConfirmDelete = async () => {
-    setDeleting(true);
+    const emailId = selectedEmail.id;
+    setConfirmOpen(false);
+    handleBack();
     try {
-      await cancelEmail(selectedEmail.id);
-      success('Email Deleted', 'The scheduled outreach was removed from the queue');
-      setConfirmOpen(false);
-      handleBack();
+      if (activeTab === 'trash') {
+        await permanentDeleteEmail(emailId);
+        success('Email Permanently Deleted', 'Email was permanently removed');
+      } else {
+        await moveToTrash(emailId);
+        success('Email Moved to Trash', 'Email was moved to Trash');
+      }
     } catch (err: any) {
-      error('Deletion failed', err.message);
-    } finally {
-      setDeleting(false);
+      error('Action failed', err.message);
     }
   };
 
@@ -308,14 +315,30 @@ export function EmailDetailView() {
                 <AlertTriangle className="w-5 h-5" />
               </div>
               <div>
-                <DialogTitle>Cancel & Delete Email</DialogTitle>
-                <p className="text-xs text-slate-400 mt-0.5">This action cannot be undone</p>
+                <DialogTitle>
+                  {activeTab === 'trash' ? 'Permanently Delete Email' : 'Move Email to Trash'}
+                </DialogTitle>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  {activeTab === 'trash'
+                    ? 'This action cannot be undone'
+                    : 'You can restore this email anytime from Trash'}
+                </p>
               </div>
             </div>
             <DialogDescription className="text-slate-600 pt-2 text-xs sm:text-sm">
-              Are you sure you want to cancel and delete this email to{' '}
-              <strong className="text-slate-900 font-semibold">{selectedEmail.recipient}</strong>?
-              It will be permanently removed from the scheduling queue and database.
+              {activeTab === 'trash' ? (
+                <>
+                  Are you sure you want to permanently delete the email to{' '}
+                  <strong className="text-slate-900 font-semibold">{selectedEmail.recipient}</strong>?
+                  It will be completely removed from the database.
+                </>
+              ) : (
+                <>
+                  Move outreach email to{' '}
+                  <strong className="text-slate-900 font-semibold">{selectedEmail.recipient}</strong> to Trash?
+                  Any pending scheduled dispatch will be paused.
+                </>
+              )}
             </DialogDescription>
           </DialogHeader>
 
@@ -351,17 +374,8 @@ export function EmailDetailView() {
               onClick={handleConfirmDelete}
               className="w-full sm:w-auto px-4 py-2 text-xs sm:text-sm font-semibold text-white bg-red-600 hover:bg-red-700 border border-red-600 rounded-xl transition-colors cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 shadow-sm"
             >
-              {deleting ? (
-                <>
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                  <span>Deleting...</span>
-                </>
-              ) : (
-                <>
-                  <Trash2 className="w-4 h-4" />
-                  <span>Delete Email</span>
-                </>
-              )}
+              <Trash2 className="w-4 h-4" />
+              <span>{activeTab === 'trash' ? 'Delete Permanently' : 'Move to Trash'}</span>
             </button>
           </DialogFooter>
         </DialogContent>

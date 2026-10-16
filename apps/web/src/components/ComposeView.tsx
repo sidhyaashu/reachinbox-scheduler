@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useSchedulerStore } from '../lib/store';
+import { useSchedulerStore, hasDraftContent } from '../lib/store';
 import {
   ArrowLeft,
   Paperclip,
@@ -30,6 +30,7 @@ import {
   Users,
   Mail,
   Layers,
+  Trash2,
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -108,27 +109,46 @@ export function ComposeView() {
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
   });
 
-  // Keep draft in sync with changes
+  // Keep draft in sync with changes only when real content exists
   useEffect(() => {
-    setComposeDraft({
-      recipients,
-      subject,
-      body,
-      delaySeconds,
-      hourlyLimit,
-      scheduledAt,
-    });
-  }, [recipients, subject, body, delaySeconds, hourlyLimit, scheduledAt, setComposeDraft]);
+    if (hasDraftContent({ recipients, subject, body })) {
+      setComposeDraft({
+        recipients,
+        subject,
+        body,
+        delaySeconds,
+        hourlyLimit,
+        scheduledAt,
+      });
+    } else if (composeDraft) {
+      clearComposeDraft();
+    }
+  }, [recipients, subject, body, delaySeconds, hourlyLimit, scheduledAt, setComposeDraft, clearComposeDraft, composeDraft]);
+
+  const handleDiscard = () => {
+    clearComposeDraft();
+    setRecipients([]);
+    setSubject('');
+    setBody('');
+    if (editorRef.current) editorRef.current.innerHTML = '';
+    success('Draft Discarded', 'Your draft has been removed');
+    closeCompose();
+    window.history.pushState(null, '', `/dashboard?tab=${activeTab}`);
+  };
 
   const handleBack = () => {
-    setComposeDraft({
-      recipients,
-      subject,
-      body,
-      delaySeconds,
-      hourlyLimit,
-      scheduledAt,
-    });
+    if (hasDraftContent({ recipients, subject, body })) {
+      setComposeDraft({
+        recipients,
+        subject,
+        body,
+        delaySeconds,
+        hourlyLimit,
+        scheduledAt,
+      });
+    } else {
+      clearComposeDraft();
+    }
     closeCompose();
     window.history.pushState(null, '', `/dashboard?tab=${activeTab}`);
   };
@@ -346,23 +366,15 @@ export function ComposeView() {
         {/* Right Action Icons & Send Later button */}
         <div className="flex items-center gap-2 2xs:gap-3">
           {/* Discard Draft button if any content exists */}
-          {composeDraft && (composeDraft.recipients.length > 0 || composeDraft.subject || composeDraft.body) && (
+          {(hasDraftContent({ recipients, subject, body }) || hasDraftContent(composeDraft)) && (
             <button
               type="button"
-              onClick={() => {
-                clearComposeDraft();
-                setRecipients([]);
-                setSubject('');
-                setBody('');
-                if (editorRef.current) editorRef.current.innerHTML = '';
-                success('Draft Cleared', 'Draft has been discarded');
-                closeCompose();
-                window.history.pushState(null, '', `/dashboard?tab=${activeTab}`);
-              }}
-              className="text-xs font-semibold text-slate-400 hover:text-red-500 transition-colors px-2.5 py-1 rounded-lg hover:bg-red-50 cursor-pointer"
+              onClick={handleDiscard}
+              className="text-xs font-semibold text-slate-400 hover:text-red-600 transition-colors px-2.5 py-1 rounded-lg hover:bg-red-50 cursor-pointer flex items-center gap-1.5"
               title="Discard draft"
             >
-              Discard
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Discard</span>
             </button>
           )}
 

@@ -10,21 +10,31 @@ export interface ComposeDraft {
   scheduledAt: string;
 }
 
+export const hasDraftContent = (draft: Partial<ComposeDraft> | null | undefined): boolean => {
+  if (!draft) return false;
+  const hasRecipients = Array.isArray(draft.recipients) && draft.recipients.some((r) => r && r.trim().length > 0);
+  const hasSubject = Boolean(draft.subject && draft.subject.trim().length > 0);
+  const cleanBody = (draft.body || '').replace(/<[^>]*>/g, '').trim();
+  const hasBody = cleanBody.length > 0;
+  return hasRecipients || hasSubject || hasBody;
+};
+
 interface SchedulerState {
   // User & Profile
   user: UserProfile | null;
   sender: DashboardSummary['sender'] | null;
   slackIntegration: DashboardSummary['slackIntegration'] | null;
   // Navigation & Active View
-  activeTab: 'scheduled' | 'sent' | 'archive' | 'drafts' | 'integrations';
+  activeTab: 'scheduled' | 'sent' | 'archive' | 'drafts' | 'trash' | 'integrations';
   mobileSidebarOpen: boolean;
   filterStatus: 'ALL' | 'SCHEDULED' | 'PROCESSING' | 'SENT' | 'FAILED';
   // Email Records
   scheduledEmails: EmailRecord[];
   sentEmails: EmailRecord[];
   archivedEmailIds: string[];
+  trashedEmailIds: string[];
   starredEmailIds: string[];
-  counts: { scheduled: number; sent: number; archive: number; drafts: number };
+  counts: { scheduled: number; sent: number; archive: number; drafts: number; trash: number };
   // Selected Email for Detail View
   selectedEmail: EmailRecord | null;
   detailOpen: boolean;
@@ -43,7 +53,7 @@ interface SchedulerState {
 
   // Actions
   loadDashboard: () => Promise<void>;
-  setActiveTab: (tab: 'scheduled' | 'sent' | 'archive' | 'drafts' | 'integrations') => void;
+  setActiveTab: (tab: 'scheduled' | 'sent' | 'archive' | 'drafts' | 'trash' | 'integrations') => void;
   setMobileSidebarOpen: (open: boolean) => void;
   setFilterStatus: (status: 'ALL' | 'SCHEDULED' | 'PROCESSING' | 'SENT' | 'FAILED') => void;
   selectEmail: (email: EmailRecord) => void;
@@ -57,6 +67,10 @@ interface SchedulerState {
   toggleStar: (emailId: string) => void;
   archiveEmail: (emailId: string) => void;
   unarchiveEmail: (emailId: string) => void;
+  moveToTrash: (emailId: string) => Promise<void>;
+  restoreFromTrash: (emailId: string) => void;
+  permanentDeleteEmail: (emailId: string) => Promise<void>;
+  emptyTrash: () => Promise<void>;
   setSearchQuery: (query: string) => void;
   cancelEmail: (emailId: string) => Promise<void>;
   scheduleCampaign: (payload: ScheduleBatchPayload) => Promise<{ scheduledCount: number }>;
@@ -85,11 +99,23 @@ const getInitialArchived = (): string[] => {
   }
 };
 
+const getInitialTrashed = (): string[] => {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem('reachinbox_trashed_emails');
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+};
+
 const getInitialDraft = (): ComposeDraft | null => {
   if (typeof window === 'undefined') return null;
   try {
     const raw = localStorage.getItem('reachinbox_compose_draft');
-    return raw ? JSON.parse(raw) : null;
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return hasDraftContent(parsed) ? parsed : null;
   } catch {
     return null;
   }
@@ -97,6 +123,7 @@ const getInitialDraft = (): ComposeDraft | null => {
 
 const initialDraft = getInitialDraft();
 const initialArchived = getInitialArchived();
+const initialTrashed = getInitialTrashed();
 const initialStarred = getInitialStarred();
 
 export const useSchedulerStore = create<SchedulerState>((set, get) => ({
@@ -109,8 +136,15 @@ export const useSchedulerStore = create<SchedulerState>((set, get) => ({
   scheduledEmails: [],
   sentEmails: [],
   archivedEmailIds: initialArchived,
+  trashedEmailIds: initialTrashed,
   starredEmailIds: initialStarred,
-  counts: { scheduled: 0, sent: 0, archive: initialArchived.length, drafts: initialDraft ? 1 : 0 },
+  counts: {
+    scheduled: 0,
+    sent: 0,
+    archive: initialArchived.length,
+    drafts: hasDraftContent(initialDraft) ? 1 : 0,
+    trash: initialTrashed.length,
+  },
   selectedEmail: null,
   detailOpen: false,
   composeOpen: false,
@@ -130,7 +164,6 @@ export const useSchedulerStore = create<SchedulerState>((set, get) => ({
       set({ isRefreshing: true, errorMessage: null });
     }
     try {
-      // Load summary and email records in parallel
       const [summary, scheduledRes, sentRes] = await Promise.all([
         apiClient.dashboard.getSummary().catch(() => null),
         apiClient.emails.getScheduled(1, 100).catch(() => ({ items: [], total: 0 })),
@@ -154,8 +187,18 @@ export const useSchedulerStore = create<SchedulerState>((set, get) => ({
       const sentItems = sentRes.items.length > 0 ? sentRes.items : (summary?.sentEmails || []);
 
       const archivedIds = get().archivedEmailIds;
-      const activeScheduled = scheduledItems.filter((e) => !archivedIds.includes(e.id));
-      const activeSent = sentItems.filter((e) => !archivedIds.includes(e.id));
+      const trashedIds = get().trashedEmailIds;
+
+      const activeScheduled = scheduledItems.filter(
+        (e) => !archivedIds.includes(e.id) && !trashedIds.includes(e.id)
+      );
+      const activeSent = sentItems.filter(
+        (e) => !archivedIds.includes(e.id) && !trashedIds.includes(e.id)
+      );
+      const activeArchived = [...scheduledItems, ...sentItems].filter(
+        (e) => archivedIds.includes(e.id) && !trashedIds.includes(e.id)
+      );
+      const activeTrashed = [...scheduledItems, ...sentItems].filter((e) => trashedIds.includes(e.id));
 
       const currentSelected = get().selectedEmail;
       let updatedSelected = currentSelected;
@@ -176,8 +219,9 @@ export const useSchedulerStore = create<SchedulerState>((set, get) => ({
         counts: {
           scheduled: activeScheduled.length,
           sent: activeSent.length,
-          archive: archivedIds.length,
-          drafts: get().composeDraft ? 1 : 0,
+          archive: activeArchived.length,
+          drafts: hasDraftContent(get().composeDraft) ? 1 : 0,
+          trash: activeTrashed.length,
         },
         isLoading: false,
         isRefreshing: false,
@@ -187,7 +231,7 @@ export const useSchedulerStore = create<SchedulerState>((set, get) => ({
     }
   },
 
-  setActiveTab: (tab: 'scheduled' | 'sent' | 'archive' | 'drafts' | 'integrations') => {
+  setActiveTab: (tab: 'scheduled' | 'sent' | 'archive' | 'drafts' | 'trash' | 'integrations') => {
     set({ activeTab: tab, selectedEmail: null, detailOpen: false, composeOpen: false, mobileSidebarOpen: false });
   },
 
@@ -240,12 +284,17 @@ export const useSchedulerStore = create<SchedulerState>((set, get) => ({
       hourlyLimit: draft.hourlyLimit !== undefined ? draft.hourlyLimit : existing.hourlyLimit,
       scheduledAt: draft.scheduledAt !== undefined ? draft.scheduledAt : existing.scheduledAt,
     };
+    const valid = hasDraftContent(updated);
     if (typeof window !== 'undefined') {
-      localStorage.setItem('reachinbox_compose_draft', JSON.stringify(updated));
+      if (valid) {
+        localStorage.setItem('reachinbox_compose_draft', JSON.stringify(updated));
+      } else {
+        localStorage.removeItem('reachinbox_compose_draft');
+      }
     }
     set((state) => ({
-      composeDraft: updated,
-      counts: { ...state.counts, drafts: 1 },
+      composeDraft: valid ? updated : null,
+      counts: { ...state.counts, drafts: valid ? 1 : 0 },
     }));
   },
 
@@ -278,15 +327,20 @@ export const useSchedulerStore = create<SchedulerState>((set, get) => ({
         localStorage.setItem('reachinbox_archived_emails', JSON.stringify(updated));
       }
       set((state) => {
-        const activeScheduled = state.scheduledEmails.filter((e) => !updated.includes(e.id));
-        const activeSent = state.sentEmails.filter((e) => !updated.includes(e.id));
+        const trashedIds = state.trashedEmailIds;
+        const activeScheduled = state.scheduledEmails.filter(
+          (e) => !updated.includes(e.id) && !trashedIds.includes(e.id)
+        );
+        const activeSent = state.sentEmails.filter(
+          (e) => !updated.includes(e.id) && !trashedIds.includes(e.id)
+        );
         return {
           archivedEmailIds: updated,
           detailOpen: false,
           selectedEmail: null,
           counts: {
             ...state.counts,
-            archive: updated.length,
+            archive: updated.filter((id) => !trashedIds.includes(id)).length,
             scheduled: activeScheduled.length,
             sent: activeSent.length,
           },
@@ -301,18 +355,156 @@ export const useSchedulerStore = create<SchedulerState>((set, get) => ({
       localStorage.setItem('reachinbox_archived_emails', JSON.stringify(updated));
     }
     set((state) => {
-      const activeScheduled = state.scheduledEmails.filter((e) => !updated.includes(e.id));
-      const activeSent = state.sentEmails.filter((e) => !updated.includes(e.id));
+      const trashedIds = state.trashedEmailIds;
+      const activeScheduled = state.scheduledEmails.filter(
+        (e) => !updated.includes(e.id) && !trashedIds.includes(e.id)
+      );
+      const activeSent = state.sentEmails.filter(
+        (e) => !updated.includes(e.id) && !trashedIds.includes(e.id)
+      );
       return {
         archivedEmailIds: updated,
         counts: {
           ...state.counts,
-          archive: updated.length,
+          archive: updated.filter((id) => !trashedIds.includes(id)).length,
           scheduled: activeScheduled.length,
           sent: activeSent.length,
         },
       };
     });
+  },
+
+  moveToTrash: async (emailId: string) => {
+    const currentTrashed = get().trashedEmailIds;
+    const updatedTrashed = currentTrashed.includes(emailId) ? currentTrashed : [...currentTrashed, emailId];
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('reachinbox_trashed_emails', JSON.stringify(updatedTrashed));
+    }
+
+    set((state) => {
+      const archivedEmailIds = state.archivedEmailIds.filter((id) => id !== emailId);
+      const scheduledEmails = state.scheduledEmails;
+      const sentEmails = state.sentEmails;
+      const activeScheduled = scheduledEmails.filter((e) => !archivedEmailIds.includes(e.id) && !updatedTrashed.includes(e.id));
+      const activeSent = sentEmails.filter((e) => !archivedEmailIds.includes(e.id) && !updatedTrashed.includes(e.id));
+      const activeArchived = [...scheduledEmails, ...sentEmails].filter((e) => archivedEmailIds.includes(e.id) && !updatedTrashed.includes(e.id));
+      const activeTrashed = [...scheduledEmails, ...sentEmails].filter((e) => updatedTrashed.includes(e.id));
+
+      return {
+        trashedEmailIds: updatedTrashed,
+        archivedEmailIds,
+        selectedEmail: state.selectedEmail?.id === emailId ? null : state.selectedEmail,
+        detailOpen: state.selectedEmail?.id === emailId ? false : state.detailOpen,
+        counts: {
+          ...state.counts,
+          scheduled: activeScheduled.length,
+          sent: activeSent.length,
+          archive: activeArchived.length,
+          trash: activeTrashed.length,
+        },
+      };
+    });
+
+    try {
+      await apiClient.emails.cancel(emailId);
+    } catch (err) {
+      console.warn('[store] Background cancel error:', err);
+    }
+  },
+
+  restoreFromTrash: (emailId: string) => {
+    const updated = get().trashedEmailIds.filter((id) => id !== emailId);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('reachinbox_trashed_emails', JSON.stringify(updated));
+    }
+    set((state) => {
+      const scheduledEmails = state.scheduledEmails;
+      const sentEmails = state.sentEmails;
+      const archivedEmailIds = state.archivedEmailIds;
+      const activeScheduled = scheduledEmails.filter((e) => !archivedEmailIds.includes(e.id) && !updated.includes(e.id));
+      const activeSent = sentEmails.filter((e) => !archivedEmailIds.includes(e.id) && !updated.includes(e.id));
+      const activeArchived = [...scheduledEmails, ...sentEmails].filter((e) => archivedEmailIds.includes(e.id) && !updated.includes(e.id));
+      const activeTrashed = [...scheduledEmails, ...sentEmails].filter((e) => updated.includes(e.id));
+
+      return {
+        trashedEmailIds: updated,
+        counts: {
+          ...state.counts,
+          scheduled: activeScheduled.length,
+          sent: activeSent.length,
+          archive: activeArchived.length,
+          trash: activeTrashed.length,
+        },
+      };
+    });
+  },
+
+  permanentDeleteEmail: async (emailId: string) => {
+    const updatedTrashed = get().trashedEmailIds.filter((id) => id !== emailId);
+    const updatedArchived = get().archivedEmailIds.filter((id) => id !== emailId);
+    const updatedStarred = get().starredEmailIds.filter((id) => id !== emailId);
+
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('reachinbox_trashed_emails', JSON.stringify(updatedTrashed));
+      localStorage.setItem('reachinbox_archived_emails', JSON.stringify(updatedArchived));
+      localStorage.setItem('reachinbox_starred_emails', JSON.stringify(updatedStarred));
+    }
+
+    set((state) => {
+      const scheduledEmails = state.scheduledEmails.filter((e) => e.id !== emailId);
+      const sentEmails = state.sentEmails.filter((e) => e.id !== emailId);
+      const searchResults = state.searchResults ? state.searchResults.filter((e) => e.id !== emailId) : null;
+      const activeScheduled = scheduledEmails.filter((e) => !updatedArchived.includes(e.id) && !updatedTrashed.includes(e.id));
+      const activeSent = sentEmails.filter((e) => !updatedArchived.includes(e.id) && !updatedTrashed.includes(e.id));
+      const activeArchived = [...scheduledEmails, ...sentEmails].filter((e) => updatedArchived.includes(e.id) && !updatedTrashed.includes(e.id));
+      const activeTrashed = [...scheduledEmails, ...sentEmails].filter((e) => updatedTrashed.includes(e.id));
+
+      return {
+        scheduledEmails,
+        sentEmails,
+        searchResults,
+        trashedEmailIds: updatedTrashed,
+        archivedEmailIds: updatedArchived,
+        starredEmailIds: updatedStarred,
+        selectedEmail: state.selectedEmail?.id === emailId ? null : state.selectedEmail,
+        detailOpen: state.selectedEmail?.id === emailId ? false : state.detailOpen,
+        counts: {
+          ...state.counts,
+          scheduled: activeScheduled.length,
+          sent: activeSent.length,
+          archive: activeArchived.length,
+          trash: activeTrashed.length,
+        },
+      };
+    });
+
+    try {
+      await apiClient.emails.delete(emailId);
+    } catch (err) {
+      console.warn('[store] Background delete error:', err);
+    }
+  },
+
+  emptyTrash: async () => {
+    const trashedIds = [...get().trashedEmailIds];
+    if (trashedIds.length === 0) return;
+
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('reachinbox_trashed_emails', JSON.stringify([]));
+    }
+
+    set((state) => {
+      const scheduledEmails = state.scheduledEmails.filter((e) => !trashedIds.includes(e.id));
+      const sentEmails = state.sentEmails.filter((e) => !trashedIds.includes(e.id));
+      return {
+        trashedEmailIds: [],
+        scheduledEmails,
+        sentEmails,
+        counts: { ...state.counts, trash: 0 },
+      };
+    });
+
+    await Promise.allSettled(trashedIds.map((id) => apiClient.emails.delete(id)));
   },
 
   setSearchQuery: async (query: string) => {
@@ -326,7 +518,6 @@ export const useSchedulerStore = create<SchedulerState>((set, get) => ({
     const reqId = ++activeSearchRequestId;
     set({ isSearching: true });
 
-    // Pre-calculate local matches across known scheduled and sent emails
     const q = trimmed.toLowerCase();
     const all = [...get().scheduledEmails, ...get().sentEmails];
     const localMatches = all.filter(
@@ -350,35 +541,7 @@ export const useSchedulerStore = create<SchedulerState>((set, get) => ({
   },
 
   cancelEmail: async (emailId: string) => {
-    await apiClient.emails.cancel(emailId);
-    set((state) => {
-      const scheduledEmails = state.scheduledEmails.filter((e) => e.id !== emailId);
-      const sentEmails = state.sentEmails.filter((e) => e.id !== emailId);
-      const searchResults = state.searchResults ? state.searchResults.filter((e) => e.id !== emailId) : null;
-      const archivedEmailIds = state.archivedEmailIds.filter((id) => id !== emailId);
-      const starredEmailIds = state.starredEmailIds.filter((id) => id !== emailId);
-
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('reachinbox_archived_emails', JSON.stringify(archivedEmailIds));
-        localStorage.setItem('reachinbox_starred_emails', JSON.stringify(starredEmailIds));
-      }
-
-      return {
-        scheduledEmails,
-        sentEmails,
-        searchResults,
-        archivedEmailIds,
-        starredEmailIds,
-        counts: {
-          ...state.counts,
-          scheduled: scheduledEmails.filter((e) => !archivedEmailIds.includes(e.id)).length,
-          sent: sentEmails.filter((e) => !archivedEmailIds.includes(e.id)).length,
-          archive: archivedEmailIds.length,
-        },
-        selectedEmail: state.selectedEmail?.id === emailId ? null : state.selectedEmail,
-        detailOpen: state.selectedEmail?.id === emailId ? false : state.detailOpen,
-      };
-    });
+    await get().moveToTrash(emailId);
   },
 
   scheduleCampaign: async (payload: ScheduleBatchPayload) => {
