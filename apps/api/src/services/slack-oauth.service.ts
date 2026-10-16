@@ -129,4 +129,37 @@ export class SlackOAuthService {
       }
     }
   }
+
+  async saveWebhookIntegration(
+    userId: string,
+    webhookUrl: string,
+    channelName?: string
+  ): Promise<SlackIntegration> {
+    if (!webhookUrl || !webhookUrl.startsWith('https://hooks.slack.com/')) {
+      throw new AppError('Invalid Slack Webhook URL. Must begin with https://hooks.slack.com/', 400, 'INVALID_WEBHOOK_URL');
+    }
+
+    const testText = '👋 *ReachInbox Integration Verified!*\nYour custom Slack webhook has been connected successfully to receive real-time rate limit alerts.';
+    try {
+      await axios.post(
+        webhookUrl,
+        { text: testText },
+        { headers: { 'Content-Type': 'application/json' }, timeout: 10000 }
+      );
+    } catch {
+      throw new AppError('Slack Webhook verification ping failed. Please verify the URL.', 400, 'SLACK_WEBHOOK_FAILED');
+    }
+
+    const cleanChannel = channelName ? (channelName.startsWith('#') ? channelName : `#${channelName}`) : '#alerts';
+    return await this.slackRepo.upsertIntegration(
+      userId,
+      'custom-webhook',
+      'Slack (Custom Webhook)',
+      'webhook-only',
+      null,
+      cleanChannel,
+      webhookUrl
+    );
+  }
 }
+

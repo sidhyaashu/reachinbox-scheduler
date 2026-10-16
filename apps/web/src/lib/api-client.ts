@@ -278,6 +278,12 @@ export const apiClient = {
         method: 'POST',
       });
     },
+    async connectWebhook(webhookUrl: string, channelName?: string): Promise<{ success: boolean; message: string }> {
+      return request<{ success: boolean; message: string }>('/integrations/slack/webhook', {
+        method: 'POST',
+        data: { webhookUrl, channelName },
+      });
+    },
   },
 
   integrations: {
@@ -296,6 +302,12 @@ export const apiClient = {
     async disconnectSlack(): Promise<{ disconnected: boolean }> {
       return request<{ disconnected: boolean }>('/integrations/slack/disconnect', {
         method: 'POST',
+      });
+    },
+    async connectSlackWebhook(webhookUrl: string, channelName?: string): Promise<{ success: boolean; message: string }> {
+      return request<{ success: boolean; message: string }>('/integrations/slack/webhook', {
+        method: 'POST',
+        data: { webhookUrl, channelName },
       });
     },
     async disconnectGoogle(): Promise<{ message: string }> {

@@ -14,6 +14,7 @@ export function createSlackRouter(controller: SlackController = new SlackControl
   router.post('/disconnect', authMiddleware, controller.disconnect);
   router.post('/test', authMiddleware, controller.testAlert);
   router.post('/test-alert', authMiddleware, controller.testAlert);
+  router.post('/webhook', authMiddleware, controller.connectWebhook);
 
   return router;
 }

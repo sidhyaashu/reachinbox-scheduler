@@ -26,6 +26,7 @@ import {
 import { Button } from './ui/button';
 import { ConfirmModal } from './ui/confirm-modal';
 import { SmtpConfigModal } from './SmtpConfigModal';
+import { SlackModal } from './SlackModal';
 import { useRouter } from 'next/navigation';
 
 export function IntegrationsView() {
@@ -44,6 +45,7 @@ export function IntegrationsView() {
   const [disconnectingGoogle, setDisconnectingGoogle] = useState(false);
   const [disconnectingSmtp, setDisconnectingSmtp] = useState(false);
   const [smtpModalOpen, setSmtpModalOpen] = useState(false);
+  const [slackModalOpen, setSlackModalOpen] = useState(false);
   const [searchFilter, setSearchFilter] = useState('');
   const [activeCategory, setActiveCategory] = useState<'all' | 'email' | 'alerts' | 'infra'>('all');
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -189,7 +191,7 @@ export function IntegrationsView() {
   };
 
   const handleConnectSlack = () => {
-    window.location.href = '/integrations/slack/authorize';
+    setSlackModalOpen(true);
   };
 
   // Card filter logic
@@ -855,6 +857,22 @@ export function IntegrationsView() {
         isOpen={smtpModalOpen}
         onClose={() => setSmtpModalOpen(false)}
         onSaved={loadDashboard}
+      />
+
+      {/* Slack Connection & Webhook Modal */}
+      <SlackModal
+        isOpen={slackModalOpen}
+        onClose={() => setSlackModalOpen(false)}
+        status={
+          slackIntegration
+            ? {
+                connected: true,
+                teamName: slackIntegration.teamName,
+                channelName: slackIntegration.channelName || undefined,
+              }
+            : { connected: false }
+        }
+        onRefresh={loadDashboard}
       />
     </div>
   );

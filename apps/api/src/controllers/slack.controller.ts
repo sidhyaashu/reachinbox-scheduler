@@ -68,4 +68,29 @@ export class SlackController {
       next(err);
     }
   };
+
+  connectWebhook = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = req.user!.id;
+      const { webhookUrl, channelName } = req.body;
+      if (!webhookUrl) {
+        res.status(400).json({ success: false, error: { code: 'MISSING_WEBHOOK_URL', message: 'webhookUrl is required' } });
+        return;
+      }
+      const integration = await this.slackService.saveWebhookIntegration(userId, webhookUrl, channelName);
+      res.status(200).json({
+        success: true,
+        data: {
+          message: 'Slack webhook connected and verified successfully',
+          integration: {
+            teamName: integration.teamName,
+            channelName: integration.channelName,
+          },
+        },
+      });
+    } catch (err) {
+      next(err);
+    }
+  };
 }
+
