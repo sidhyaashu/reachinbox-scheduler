@@ -5,13 +5,9 @@
 [![Live Demo](https://img.shields.io/badge/Live%20Deployment-reachinbox.ovanthra.com-00a84e?style=for-the-badge&logo=google-chrome&logoColor=white)](https://reachinbox.ovanthra.com)
 [![GitHub Repository](https://img.shields.io/badge/GitHub-sidhyaashu%2Freachinbox--scheduler-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/sidhyaashu/reachinbox-scheduler)
 [![BullMQ Dashboard](https://img.shields.io/badge/BullMQ%20Queue%20Monitor-/admin/queues-FF4500?style=for-the-badge&logo=redis&logoColor=white)](https://reachinbox.ovanthra.com/admin/queues)
-[![Submission Form](https://img.shields.io/badge/ClickUp-Assignment%20Submission-7B68EE?style=for-the-badge&logo=clickup&logoColor=white)](https://forms.clickup.com/9005062261/f/8cbwp3n-8876/6NNNJ92DV93PQTAYST)
 
-**Engineered for Outbox Labs (ReachInbox.ai) Software Development Engineer Assignment**  
+**Distributed Cold Outreach & Transactional Outbox Scheduling Platform**  
 *Built for extreme deliverability, fault-tolerant persistence, and high-burst scale.*
-
-Candidate: **Senior Software Architect / Full Stack Engineer**  
-Reviewer Access Granted: [`Mitrajit`](https://github.com/Mitrajit) • [`Yadav036`](https://github.com/Yadav036)
 
 </div>
 
@@ -503,27 +499,7 @@ npx tsx scripts/restart-test.ts
 
 ---
 
-## 8. 5-Minute Video Walkthrough Script
+## 8. License & Acknowledgements
 
-| Time | Segment | What to Show & Explain |
-|---|---|---|
-| **0:00 - 0:45** | **Architecture & Invariants** | Open `README.md`. Highlight the core invariants: **Zero Cron Jobs**, **Raw Parameterized SQL**, **Transactional Outbox Pattern**, and **Redis AOF Persistence**. |
-| **0:45 - 1:30** | **Login & Dashboard Overview** | Open [https://reachinbox.ovanthra.com](https://reachinbox.ovanthra.com). Demonstrate Google OAuth or instant Demo Login. Review the Figma-matched dashboard: Scheduled/Sent tabs, KPI metric cards, and sidebar navigation. |
-| **1:30 - 2:45** | **Compose & Lead CSV Scheduling** | Click **"Compose"**. Paste a list of emails (or click `+ Upload List` to upload a `.csv` file). Show dynamic lead tag count and runtime projection pill. Set **Delay between 2 emails** to `8 sec` and **Hourly Limit** to `50`. Click **Send Later** and schedule. |
-| **2:45 - 3:45** | **BullMQ & Ethereal Delivery** | Open `/admin/queues` in a new tab. Show jobs in BullMQ with deterministic IDs and delay countdowns. Show Email 1 sending immediately, and Email 2 waiting with an `in 8s` badge. Open Email Detail View to show the **5-card Delivery Pipeline & Queue Telemetry** and click the Ethereal web preview link. |
-| **3:45 - 4:30** | **Rate Limiting & Slack Alert** | Demonstrate rate limit breach when quota is reached: emails automatically transition to `'DEFERRED'` for the next hour window (zero-drop guarantee). Open Slack Integrations to show live webhook rate-limit alerts. |
-| **4:30 - 5:00** | **Search & Persistence Wrap-up** | Type a keyword into the global search bar to show instant tenant-isolated Elasticsearch results. Explain restart recovery resilience and conclude. |
+MIT License © 2026. Built with high-deliverability architecture principles for distributed email outreach and scheduling.
 
----
-
-## 9. Repository Access & Submission Details
-
-- **GitHub Repository**: [`https://github.com/sidhyaashu/reachinbox-scheduler`](https://github.com/sidhyaashu/reachinbox-scheduler)
-- **Hosted Production URL**: [`https://reachinbox.ovanthra.com`](https://reachinbox.ovanthra.com) (Azure VM `104.43.57.147`)
-- **Submission Form**: [`https://forms.clickup.com/9005062261/f/8cbwp3n-8876/6NNNJ92DV93PQTAYST`](https://forms.clickup.com/9005062261/f/8cbwp3n-8876/6NNNJ92DV93PQTAYST)
-- **Collaborator Access Granted**:
-  - `Mitrajit`: [`https://github.com/Mitrajit`](https://github.com/Mitrajit)
-  - `Yadav036`: [`https://github.com/Yadav036`](https://github.com/Yadav036)
-
----
-*Developed with ❤️ for Outbox Labs & ReachInbox.*
