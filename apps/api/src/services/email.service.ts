@@ -12,6 +12,7 @@ import {
   EmailRecord,
   ConflictError,
   NotFoundError,
+  BadRequestError,
 } from '@reachinbox/shared';
 import { removeEmailJob } from '@reachinbox/queue';
 
