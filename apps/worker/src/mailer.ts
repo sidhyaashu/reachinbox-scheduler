@@ -194,10 +194,14 @@ export class MailerService {
     }
 
     if (sender && sender.smtpUser && sender.smtpPass) {
+      const port = Number(sender.smtpPort) || 587;
+      // Port 465 is always implicit SSL (secure: true).
+      // Port 587 is always explicit STARTTLS (secure: false).
+      const secure = port === 465 ? true : (port === 587 ? false : Boolean(sender.smtpSecure));
       return nodemailer.createTransport({
         host: sender.smtpHost || 'smtp.ethereal.email',
-        port: sender.smtpPort || 587,
-        secure: sender.smtpSecure || false,
+        port,
+        secure,
         auth: {
           user: sender.smtpUser,
           pass: sender.smtpPass,
