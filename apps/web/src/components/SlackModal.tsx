@@ -102,7 +102,7 @@ export function SlackModal({ isOpen, onClose, status, onRefresh }: SlackModalPro
                 </div>
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-slate-400">Alert Channel:</span>
-                  <span className="font-semibold text-brand-400">#{status.channelName || 'general'}</span>
+                  <span className="font-semibold text-brand-400">#{String(status.channelName || 'general').replace(/^#+/, '')}</span>
                 </div>
               </div>
 

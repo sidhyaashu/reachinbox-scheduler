@@ -383,75 +383,79 @@ export function EmailList() {
             className="group flex flex-col sm:flex-row sm:items-center justify-between py-3 2xs:py-3.5 px-2.5 2xs:px-3 hover:bg-slate-50/80 cursor-pointer transition-colors text-sm gap-2 sm:gap-4"
           >
             {/* Mobile Layout: Stacked for < sm (320px - 639px) */}
-            <div className="flex sm:hidden items-center justify-between gap-2 w-full">
-              <span className="font-bold text-slate-900 truncate text-xs 2xs:text-sm">
-                To: {recipientName}
-              </span>
-              <div className="flex items-center gap-2">
-                {renderBadge()}
-                {(activeTab === 'archive' || activeTab === 'trash') && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (activeTab === 'trash') {
-                        restoreFromTrash(email.id);
-                        success('Email Restored', `Email to ${email.recipient} restored`);
-                      } else {
-                        unarchiveEmail(email.id);
-                        success('Email Restored', `Email to ${email.recipient} restored`);
-                      }
-                    }}
-                    className="p-1 text-slate-400 hover:text-[#00a84e] transition-colors cursor-pointer shrink-0"
-                    title="Restore to inbox"
-                  >
-                    <ArchiveRestore className="w-3.5 h-3.5" />
-                  </button>
-                )}
-                {(activeTab === 'scheduled' || activeTab === 'sent') && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      archiveEmail(email.id);
-                      success('Email Archived', `Email to ${email.recipient} moved to archive`);
-                    }}
-                    className="p-1 text-slate-300 hover:text-slate-600 transition-colors cursor-pointer shrink-0"
-                    title="Archive email"
-                  >
-                    <Archive className="w-3.5 h-3.5" />
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={(e) => handleStarClick(e, email.id)}
-                  className="p-1 text-slate-300 hover:text-amber-400 transition-colors cursor-pointer shrink-0"
-                  title={isStarred ? 'Unstar email' : 'Star email'}
-                >
-                  <Star
-                    className={`w-3.5 h-3.5 ${
-                      isStarred ? 'fill-amber-400 text-amber-400' : 'text-slate-300'
-                    }`}
-                  />
-                </button>
-                <button
-                  type="button"
-                  onClick={(e) => handleDeleteClick(e, email)}
-                  className="p-1 text-slate-300 hover:text-red-500 transition-colors cursor-pointer shrink-0"
-                  title={activeTab === 'trash' ? 'Delete permanently' : activeTab === 'drafts' ? 'Discard draft' : 'Move to trash'}
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
+            <div className="flex sm:hidden flex-col gap-1 w-full">
+              <div className="flex items-center justify-between gap-1.5 w-full min-w-0">
+                <span className="font-bold text-slate-900 truncate text-xs 2xs:text-sm min-w-0 flex-1">
+                  To: {recipientName}
+                </span>
+                <div className="flex items-center gap-1 shrink-0">
+                  {renderBadge()}
+                  <div className="flex items-center gap-0.5 ml-0.5 shrink-0">
+                    {(activeTab === 'archive' || activeTab === 'trash') && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (activeTab === 'trash') {
+                            restoreFromTrash(email.id);
+                            success('Email Restored', `Email to ${email.recipient} restored`);
+                          } else {
+                            unarchiveEmail(email.id);
+                            success('Email Restored', `Email to ${email.recipient} restored`);
+                          }
+                        }}
+                        className="p-1 rounded-md text-slate-400 hover:text-[#00a84e] transition-colors cursor-pointer shrink-0"
+                        title="Restore to inbox"
+                      >
+                        <ArchiveRestore className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                    {(activeTab === 'scheduled' || activeTab === 'sent') && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          archiveEmail(email.id);
+                          success('Email Archived', `Email to ${email.recipient} moved to archive`);
+                        }}
+                        className="p-1 rounded-md text-slate-300 hover:text-slate-600 transition-colors cursor-pointer shrink-0"
+                        title="Archive email"
+                      >
+                        <Archive className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={(e) => handleStarClick(e, email.id)}
+                      className="p-1 rounded-md text-slate-300 hover:text-amber-400 transition-colors cursor-pointer shrink-0"
+                      title={isStarred ? 'Unstar email' : 'Star email'}
+                    >
+                      <Star
+                        className={`w-3.5 h-3.5 ${
+                          isStarred ? 'fill-amber-400 text-amber-400' : 'text-slate-300'
+                        }`}
+                      />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => handleDeleteClick(e, email)}
+                      className="p-1 rounded-md text-slate-300 hover:text-red-500 transition-colors cursor-pointer shrink-0"
+                      title={activeTab === 'trash' ? 'Delete permanently' : activeTab === 'drafts' ? 'Discard draft' : 'Move to trash'}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
               </div>
-            </div>
 
-            <div className="sm:hidden text-xs text-slate-600 truncate flex items-center gap-1.5">
-              <span className="font-semibold text-slate-900 truncate">
-                {email.subject || 'Outreach campaign'}
-              </span>
-              <span className="text-slate-400 truncate font-normal">
-                - {email.body ? email.body.replace(/<[^>]*>/g, '') : 'No message body'}
-              </span>
+              <div className="text-xs text-slate-600 truncate flex items-center gap-1.5 min-w-0">
+                <span className="font-semibold text-slate-900 truncate shrink-0 max-w-[50%]">
+                  {email.subject || 'Outreach campaign'}
+                </span>
+                <span className="text-slate-400 truncate font-normal">
+                  — {email.body ? email.body.replace(/<[^>]*>/g, '') : 'No message body'}
+                </span>
+              </div>
             </div>
 
             {/* Desktop Layout: Horizontal Row for >= sm (640px - 1536px+) */}

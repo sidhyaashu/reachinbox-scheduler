@@ -318,7 +318,7 @@ export function IntegrationsView() {
             <div className="min-w-0">
               <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Rate-Limit Alerts</p>
               <p className="text-sm font-bold text-slate-900 truncate mt-0.5">
-                {isSlackConnected ? `#${slackIntegration?.channelName || 'general'}` : 'Not Enabled'}
+                {isSlackConnected ? `#${(slackIntegration?.channelName || 'general').replace(/^#+/, '')}` : 'Not Enabled'}
               </p>
               <p className="text-[11px] text-slate-500 truncate">
                 {isSlackConnected ? (slackIntegration?.teamName || 'Slack Workspace') : 'Rate-limit breaches unhooked'}
@@ -340,11 +340,11 @@ export function IntegrationsView() {
       {/* Filter and Search Controls */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-slate-200/80">
         {/* Category Pills */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           <button
             type="button"
             onClick={() => setActiveCategory('all')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
+            className={`shrink-0 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
               activeCategory === 'all'
                 ? 'bg-slate-900 text-white shadow-xs'
                 : 'text-slate-600 hover:bg-slate-100'
@@ -355,7 +355,7 @@ export function IntegrationsView() {
           <button
             type="button"
             onClick={() => setActiveCategory('email')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
+            className={`shrink-0 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
               activeCategory === 'email'
                 ? 'bg-slate-900 text-white shadow-xs'
                 : 'text-slate-600 hover:bg-slate-100'
@@ -366,7 +366,7 @@ export function IntegrationsView() {
           <button
             type="button"
             onClick={() => setActiveCategory('alerts')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
+            className={`shrink-0 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
               activeCategory === 'alerts'
                 ? 'bg-slate-900 text-white shadow-xs'
                 : 'text-slate-600 hover:bg-slate-100'
@@ -377,7 +377,7 @@ export function IntegrationsView() {
           <button
             type="button"
             onClick={() => setActiveCategory('infra')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
+            className={`shrink-0 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
               activeCategory === 'infra'
                 ? 'bg-slate-900 text-white shadow-xs'
                 : 'text-slate-600 hover:bg-slate-100'
@@ -585,7 +585,7 @@ export function IntegrationsView() {
                     <div className="flex items-center justify-between">
                       <span className="text-slate-500">Alert Destination Channel:</span>
                       <span className="font-mono text-purple-700 font-bold bg-purple-50 px-2 py-0.5 rounded-md border border-purple-200">
-                        #{slackIntegration?.channelName || 'general'}
+                        #{String(slackIntegration?.channelName || 'general').replace(/^#+/, '')}
                       </span>
                     </div>
                     <div className="flex items-center justify-between">

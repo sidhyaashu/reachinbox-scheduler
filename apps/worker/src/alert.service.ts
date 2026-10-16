@@ -42,7 +42,18 @@ export class SlackAlertProvider implements AlertProvider {
       return;
     }
 
-    const messageText = `🚨 *ReachInbox Rate Limit Alert*\n• *Sender:* ${payload.senderEmail}\n• *Quota:* Reached ${payload.hourlyLimit} emails/hour\n• *Status:* Subsequent emails deferred to ${payload.nextWindowDate.toUTCString()}\n• *Note:* Zero jobs dropped. Resilience guaranteed.`;
+    const istFormatted = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Kolkata',
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    }).format(payload.nextWindowDate) + ' IST';
+
+    const messageText = `🚨 *ReachInbox Rate Limit Alert*\n• *Sender:* ${payload.senderEmail}\n• *Quota:* Reached ${payload.hourlyLimit} emails/hour\n• *Status:* Subsequent emails deferred to *${istFormatted}*\n• *Note:* Zero jobs dropped. Resilience guaranteed.`;
 
     if (integration.webhookUrl) {
       await axios.post(
