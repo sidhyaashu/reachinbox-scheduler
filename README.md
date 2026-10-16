@@ -1,9 +1,51 @@
 # ReachInbox Scheduler — Production-Grade Distributed Email Scheduling Platform
 
-> **Outbox Labs Hiring Assignment**: Built for extreme deliverability, fault-tolerant persistence, and high-burst scale.  
-> **Author**: Senior Software Architect / Senior TypeScript Engineer Candidate  
-> **Submission Requirements**: GitHub access granted to [`Mitrajit`](https://github.com/Mitrajit) and [`Yadav036`](https://github.com/Yadav036).  
-> **Live Production Deployment**: [https://reachinbox.ovanthra.com](https://reachinbox.ovanthra.com) (Azure VM `104.43.57.147`)
+<div align="center">
+
+[![Live Demo](https://img.shields.io/badge/Live%20Deployment-reachinbox.ovanthra.com-00a84e?style=for-the-badge&logo=google-chrome&logoColor=white)](https://reachinbox.ovanthra.com)
+[![GitHub Repository](https://img.shields.io/badge/GitHub-sidhyaashu%2Freachinbox--scheduler-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/sidhyaashu/reachinbox-scheduler)
+[![BullMQ Dashboard](https://img.shields.io/badge/BullMQ%20Queue%20Monitor-/admin/queues-FF4500?style=for-the-badge&logo=redis&logoColor=white)](https://reachinbox.ovanthra.com/admin/queues)
+[![Submission Form](https://img.shields.io/badge/ClickUp-Assignment%20Submission-7B68EE?style=for-the-badge&logo=clickup&logoColor=white)](https://forms.clickup.com/9005062261/f/8cbwp3n-8876/6NNNJ92DV93PQTAYST)
+
+**Engineered for Outbox Labs (ReachInbox.ai) Software Development Engineer Assignment**  
+*Built for extreme deliverability, fault-tolerant persistence, and high-burst scale.*
+
+Candidate: **Senior Software Architect / Full Stack Engineer**  
+Reviewer Access Granted: [`Mitrajit`](https://github.com/Mitrajit) • [`Yadav036`](https://github.com/Yadav036)
+
+</div>
+
+---
+
+## 📸 Visual Tour & Application Showcase
+
+### 1. Figma Login Page (Google OAuth & Instant Demo Login)
+![Figma Login](./public/login_page.png)
+> Clean authentication supporting real Google OAuth 2.0 with offline scope and an **"Instant Demo Login"** button that initializes a complete user profile (`alex.founder@reachinbox.ai`), verified sender mailbox, and active session without requiring credentials.
+
+---
+
+### 2. Main Dashboard & Real-Time Email List
+![Dashboard](./public/dashboard.png)
+> Pixel-perfect Figma light theme (`#F4F5F7` canvas, `#10B981` accents) featuring live KPI metric cards (Total Sent, Scheduled Emails, Active Inter-Send Delay, Hourly Quota) and real-time relative countdown badges (`in 8s`).
+
+---
+
+### 3. Full Compose Workspace & Rate Limit Controls
+![Compose View](./public/compose.png)
+> Complete compose workspace with smart multi-recipient tagging, inline **Delay between 2 emails** (e.g. 8 sec), **Hourly Limit** (e.g. 50/hr), rich text editing, attachments up to 10MB, and **Send Later** calendar scheduling.
+
+---
+
+### 4. Bulk CSV Lead Ingestion & Runtime Delay Projection
+![CSV Upload & Spacing](./public/upload.png)
+> Features `+ Upload List` for bulk `.csv` / `.txt` parsing, instant clipboard paste parsing (commas, semicolons, tabs, newlines), and a dynamic campaign runtime projection pill (`"2 recipients spaced by 8s • Duration: ~8s"`).
+
+---
+
+### 5. Integrations & Live Slack Rate-Limit Alerting
+![Integrations](./public/integration.png)
+> Direct mailbox management (Google Gmail OAuth2, Custom SMTP credentials, and Ethereal sandbox relay) and live Slack OAuth integration that triggers an instant rich webhook alert the second an hourly limit is reached.
 
 ---
 
@@ -30,7 +72,7 @@ ReachInbox Scheduler is an enterprise-scale distributed email orchestration engi
                                   [ Browser / Client ]
                                             │
                                             ▼
-                                  [ Nginx Reverse Proxy ] (:80 / :443)
+                                  [ Nginx / Caddy Proxy ] (:80 / :443)
                                             │
                                             ▼
                                    [ API Gateway ] (:4000)
@@ -81,7 +123,7 @@ Traditional schedulers rely on cron jobs (e.g. checking the DB every minute via 
 ReachInbox Scheduler replaces cron entirely with **BullMQ delayed jobs + Transactional Outbox Pattern**:
 
 ```
-[ POST /api/v1/emails/schedule ]
+[ POST /api/v1/emails/batch or /schedule ]
             │
             ▼
 [ Single SQL Transaction: BEGIN ... COMMIT ]
@@ -272,7 +314,7 @@ Starts all 10 containers (Postgres 16, Redis 7 with AOF, Elasticsearch 8, Databa
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/your-username/reachinbox-scheduler.git
+git clone https://github.com/sidhyaashu/reachinbox-scheduler.git
 cd reachinbox-scheduler
 
 # 2. Copy the environment configuration
@@ -474,11 +516,14 @@ npx tsx scripts/restart-test.ts
 
 ---
 
-## 9. Repository Access
+## 9. Repository Access & Submission Details
 
-Per assignment instructions, repository access has been granted to:
-- **Mitrajit**: [`https://github.com/Mitrajit`](https://github.com/Mitrajit)
-- **Yadav036**: [`https://github.com/Yadav036`](https://github.com/Yadav036)
+- **GitHub Repository**: [`https://github.com/sidhyaashu/reachinbox-scheduler`](https://github.com/sidhyaashu/reachinbox-scheduler)
+- **Hosted Production URL**: [`https://reachinbox.ovanthra.com`](https://reachinbox.ovanthra.com) (Azure VM `104.43.57.147`)
+- **Submission Form**: [`https://forms.clickup.com/9005062261/f/8cbwp3n-8876/6NNNJ92DV93PQTAYST`](https://forms.clickup.com/9005062261/f/8cbwp3n-8876/6NNNJ92DV93PQTAYST)
+- **Collaborator Access Granted**:
+  - `Mitrajit`: [`https://github.com/Mitrajit`](https://github.com/Mitrajit)
+  - `Yadav036`: [`https://github.com/Yadav036`](https://github.com/Yadav036)
 
 ---
 *Developed with ❤️ for Outbox Labs & ReachInbox.*
